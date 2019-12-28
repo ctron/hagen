@@ -1,0 +1,9 @@
+[package]
+name = "honest-android-games"
+version = "0.1.0"
+authors = ["Jens Reimann <ctron@dentrassi.de>"]
+edition = "2018"
+
+[dependencies]
+handlebars = "3.0.0-beta.4"
+failure = "0.1.6"
