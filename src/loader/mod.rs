@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use failure::Error;
 use std::collections::BTreeMap;
+use std::ffi::OsStr;
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -22,13 +23,28 @@ pub struct Metadata {
     name: String,
     path: String,
     filename: String,
+
+    #[serde(rename = "type")]
+    type_name: String,
+}
+
+impl Metadata {
+    pub fn from_path<P: AsRef<Path>, S: Into<String>>(path: P, type_name: S) -> Metadata {
+        let path = path.as_ref();
+        Metadata {
+            name: path_to_string(path.file_stem()),
+            path: path_to_string(path.parent()),
+            filename: path_to_string(path.file_name()),
+            type_name: type_name.into(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Content {
     metadata: Metadata,
-    frontMatter: BTreeMap<String, serde_json::Value>,
+    front_matter: BTreeMap<String, serde_json::Value>,
     content: serde_json::Value,
 }
 
@@ -48,5 +64,16 @@ where
             Some("yaml") | Some("yml") => Some(Box::new(YAMLLoader::new(path))),
             _ => None,
         },
+    }
+}
+
+fn path_to_string<P: AsRef<OsStr>>(path: Option<P>) -> String {
+    match path {
+        None => String::default(),
+        Some(s) => s
+            .as_ref()
+            .to_str()
+            .map(|s| s.to_string())
+            .unwrap_or_default(),
     }
 }

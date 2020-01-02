@@ -8,6 +8,7 @@ use log::{debug, info};
 use crate::loader::directory::DirectoryLoader;
 use crate::loader::Loader;
 use failure::Error;
+use std::fs::File;
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -35,11 +36,11 @@ impl Generator<'_> {
         self.handlebars
             .register_templates_directory(".hbs", self.root.join("templates"))?;
 
-        // load data
-        self.load_content()?;
-
         // clean output
         self.clean()?;
+
+        // load data
+        self.load_content()?;
 
         // render pages
 
@@ -52,7 +53,13 @@ impl Generator<'_> {
         info!("Loading content: {:?}", content);
 
         let content = DirectoryLoader::new(content).load_from()?;
-        serde_yaml::to_writer(io::stdout(), &content);
+        serde_yaml::to_writer(io::stdout(), &content)?;
+
+        // dump content
+        let writer = File::create(self.output().join("content.yaml"))?;
+        serde_yaml::to_writer(writer, &content)?;
+
+        // done
 
         Ok(())
     }
@@ -64,6 +71,8 @@ impl Generator<'_> {
         if p.exists() {
             fs::remove_dir_all(self.output().as_path())?;
         }
+
+        fs::create_dir_all(p)?;
 
         Ok(())
     }

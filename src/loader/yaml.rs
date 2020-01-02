@@ -5,8 +5,9 @@ use std::path::Path;
 type Result<T> = std::result::Result<T, Error>;
 
 use crate::loader::{Content, Loader, Metadata};
-use serde_json::Value;
+use serde::Deserializer;
 use std::collections::BTreeMap;
+use std::fs::File;
 
 pub struct YAMLLoader<P: AsRef<Path>> {
     path: P,
@@ -20,16 +21,16 @@ impl<P: AsRef<Path>> YAMLLoader<P> {
 
 impl<P: AsRef<Path>> Loader for YAMLLoader<P> {
     fn load_from(&self) -> Result<Content> {
-        info!("Loading - YAML: {:?}", self.path.as_ref());
+        let path = self.path.as_ref();
+        info!("Loading - YAML: {:?}", path);
+
+        let reader = File::open(path)?;
+        let content = serde_yaml::from_reader(reader)?;
 
         Ok(Content {
-            metadata: Metadata {
-                path: String::from(""),
-                name: String::from(""),
-                filename: String::from(""),
-            },
-            frontMatter: BTreeMap::new(),
-            content: Value::Null,
+            metadata: Metadata::from_path(path, "yaml"),
+            front_matter: BTreeMap::new(),
+            content,
         })
     }
 }

@@ -6,8 +6,7 @@ use std::path::Path;
 use failure::Error;
 type Result<T> = std::result::Result<T, Error>;
 
-use crate::loader::{detect, Content, Loader, Metadata};
-use serde_json::Value;
+use crate::loader::{detect, path_to_string, Content, Loader, Metadata};
 use std::collections::BTreeMap;
 
 pub struct DirectoryLoader<P: AsRef<Path>> {
@@ -33,34 +32,14 @@ impl<P: AsRef<Path>> Loader for DirectoryLoader<P> {
             let path = entry.path();
             if let Some(loader) = detect(path.clone()) {
                 let child = loader.load_from()?;
-                let child_name = path
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .map(|s| s.to_string())
-                    .unwrap_or_default();
+                let child_name = path_to_string(path.file_stem());
                 content.insert(child_name, child);
             }
         }
 
         Ok(Content {
-            metadata: Metadata {
-                name: path
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .map(|s| s.to_string())
-                    .unwrap_or_default(),
-                path: path
-                    .parent()
-                    .and_then(|s| s.to_str())
-                    .map(|s| s.to_string())
-                    .unwrap_or_default(),
-                filename: path
-                    .file_name()
-                    .and_then(|s| s.to_str())
-                    .map(|s| s.to_string())
-                    .unwrap_or_default(),
-            },
-            frontMatter: BTreeMap::new(),
+            metadata: Metadata::from_path(path, "directory"),
+            front_matter: BTreeMap::new(),
             content: serde_json::to_value(content)?,
         })
     }
