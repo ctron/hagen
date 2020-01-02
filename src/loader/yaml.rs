@@ -5,7 +5,7 @@ use std::path::Path;
 type Result<T> = std::result::Result<T, Error>;
 
 use crate::loader::{Content, Loader, Metadata};
-use serde::Deserializer;
+
 use std::collections::BTreeMap;
 use std::fs::File;
 

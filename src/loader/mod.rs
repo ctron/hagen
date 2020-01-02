@@ -18,7 +18,7 @@ pub trait Loader {
     fn load_from(&self) -> Result<Content>;
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Metadata {
     name: String,
     path: String,
@@ -40,7 +40,7 @@ impl Metadata {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Content {
     metadata: Metadata,

@@ -1,10 +1,7 @@
-extern crate env_logger;
-extern crate handlebars;
-extern crate log;
-
 mod error;
 mod generator;
 mod loader;
+mod rules;
 
 use std::env;
 use std::path::Path;
@@ -14,12 +11,15 @@ use generator::Generator;
 use log::{debug, info};
 
 use env_logger::Env;
-use failure::Error;
+use failure::{Error, Fail};
 
 type Result<T> = std::result::Result<T, Error>;
 
 fn hag_exit(err: failure::Error) -> ! {
-    println!("{}", err);
+    for cause in Fail::iter_chain(err.as_fail()) {
+        println!("{}: {}", cause.name().unwrap_or("Error"), cause);
+    }
+
     std::process::exit(1)
 }
 
@@ -31,7 +31,7 @@ fn hag_run() -> Result<()> {
     info!("Root path: {:?}", root);
 
     let mut generator = Generator::new(root);
-    generator.run()
+    Ok(generator.run()?)
 }
 
 fn main() {
