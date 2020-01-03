@@ -14,7 +14,8 @@ use crate::error::GeneratorError;
 use crate::error::GeneratorError::GenericError;
 use failure::Error;
 use jsonpath_lib::Selector;
-use serde_json::Value;
+use serde_json::{Map, Value};
+use std::collections::BTreeMap;
 use std::fs::File;
 
 type Result<T> = std::result::Result<T, Error>;
@@ -23,7 +24,9 @@ pub struct Generator<'a> {
     root: PathBuf,
     handlebars: Handlebars<'a>,
     content: Content,
+
     full_content: Value,
+    compact_content: Value,
 }
 
 impl Generator<'_> {
@@ -40,6 +43,7 @@ impl Generator<'_> {
             handlebars,
             content: Default::default(),
             full_content: Default::default(),
+            compact_content: Default::default(),
         }
     }
 
@@ -72,15 +76,35 @@ impl Generator<'_> {
         // load content
         let content = DirectoryLoader::new(content).load_from()?;
 
-        // dump content
-        let writer = File::create(self.output().join("content.yaml"))?;
-        serde_yaml::to_writer(writer, &content)?;
-
         // convert to value
         self.full_content = serde_json::to_value(&content)?;
+        self.compact_content = Generator::compact_content(&self.full_content);
+
+        // dump content
+        let writer = File::create(self.output().join("content.yaml"))?;
+        serde_yaml::to_writer(writer, &self.full_content)?;
+        let writer = File::create(self.output().join("compact.yaml"))?;
+        serde_yaml::to_writer(writer, &self.compact_content)?;
 
         // done
         Ok(())
+    }
+
+    // Compact the content tree to contain only "content" sections.
+    fn compact_content(v: &Value) -> Value {
+        match v {
+            Value::Object(m) => match m.get("content".into()) {
+                Some(Value::Object(mc)) => {
+                    let mut r = Map::new();
+                    for (k, v) in mc {
+                        r.insert(k.clone(), Generator::compact_content(v));
+                    }
+                    Value::Object(r)
+                }
+                _ => v.clone(),
+            },
+            _ => v.clone(),
+        }
     }
 
     fn render(&self, render: &Render) -> Result<()> {
@@ -121,12 +145,32 @@ impl Generator<'_> {
             .handlebars
             .render_template(&rule.output_pattern, entry)?;
         let template = self.handlebars.render_template(&rule.template, entry)?;
+        let target = self.output().join(Path::new(&path));
+
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent)?;
+        }
 
         // render
-        info!("Render {} with {}", path, template);
+        info!("Render '{}' with '{}'", path, template);
+
+        info!("  Target: {:?}", target);
+        let writer = File::create(target)?;
+
+        self.handlebars
+            .render_to_write(&template, &self.data(entry), writer)?;
 
         // done
         Ok(())
+    }
+
+    fn data(&self, entry: &Value) -> Value {
+        let mut data = serde_json::value::Map::new();
+        data.insert("page".into(), entry.clone());
+        data.insert("full".into(), self.full_content.clone());
+        data.insert("compact".into(), self.compact_content.clone());
+
+        serde_json::value::Value::Object(data)
     }
 
     pub fn clean(&self) -> Result<()> {
@@ -143,7 +187,7 @@ impl Generator<'_> {
     }
 }
 
-fn query_x<'a>(s: &'a str, content: &'a Value) -> Result<Vec<&'a Value>> {
+fn query<'a>(s: &'a str, content: &'a Value) -> Result<Vec<&'a Value>> {
     let mut selector = Selector::new();
     let mut selector = selector.str_path(&s).map_err(|e| GeneratorError::from(e))?;
 
@@ -151,9 +195,16 @@ fn query_x<'a>(s: &'a str, content: &'a Value) -> Result<Vec<&'a Value>> {
         Err(err) => Err(GeneratorError::from(err).into()),
         Ok(v) => Ok(v),
     }
+    .map(|v| -> Vec<&Value> {
+        let mut v = v.clone();
+        v.retain(|e| e.is_object());
+        v
+    })
 }
 
-fn query<'a>(s: &'a str, content: &'a Value) -> Result<Vec<&'a Value>> {
+/*
+fn query_x<'a>(s: &'a str, content: &'a Value) -> Result<Vec<&'a Value>> {
     let result = jq_rs::run(str, serde_json::to_string(content)?.into())?;
     serde_json::from_str(&result)?
 }
+*/

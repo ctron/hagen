@@ -43,9 +43,9 @@ impl Metadata {
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Content {
-    metadata: Metadata,
-    front_matter: BTreeMap<String, serde_json::Value>,
-    content: serde_json::Value,
+    pub metadata: Metadata,
+    pub front_matter: BTreeMap<String, serde_json::Value>,
+    pub content: serde_json::Value,
 }
 
 pub fn detect<P>(path: P) -> Option<Box<dyn Loader>>
