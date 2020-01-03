@@ -7,6 +7,7 @@ use failure::Error;
 type Result<T> = std::result::Result<T, Error>;
 
 use crate::loader::{detect, path_to_string, Content, Loader, Metadata};
+use serde_json::Map;
 use std::collections::BTreeMap;
 
 pub struct DirectoryLoader<P: AsRef<Path>> {
@@ -39,7 +40,7 @@ impl<P: AsRef<Path>> Loader for DirectoryLoader<P> {
 
         Ok(Content {
             metadata: Metadata::from_path(path, "directory"),
-            front_matter: BTreeMap::new(),
+            front_matter: Map::new(),
             content: serde_json::to_value(content)?,
         })
     }

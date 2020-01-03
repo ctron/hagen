@@ -189,7 +189,7 @@ impl Generator<'_> {
 
 fn query<'a>(s: &'a str, content: &'a Value) -> Result<Vec<&'a Value>> {
     let mut selector = Selector::new();
-    let mut selector = selector.str_path(&s).map_err(|e| GeneratorError::from(e))?;
+    let selector = selector.str_path(&s).map_err(|e| GeneratorError::from(e))?;
 
     match selector.value(&content).select() {
         Err(err) => Err(GeneratorError::from(err).into()),

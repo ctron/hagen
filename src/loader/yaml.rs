@@ -6,6 +6,7 @@ type Result<T> = std::result::Result<T, Error>;
 
 use crate::loader::{Content, Loader, Metadata};
 
+use serde_json::Map;
 use std::collections::BTreeMap;
 use std::fs::File;
 
@@ -29,7 +30,7 @@ impl<P: AsRef<Path>> Loader for YAMLLoader<P> {
 
         Ok(Content {
             metadata: Metadata::from_path(path, "yaml"),
-            front_matter: BTreeMap::new(),
+            front_matter: Map::new(),
             content,
         })
     }

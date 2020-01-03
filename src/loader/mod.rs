@@ -1,17 +1,20 @@
 use std::path::Path;
 
 use crate::loader::directory::DirectoryLoader;
+use crate::loader::markdown::MarkdownLoader;
 use crate::loader::yaml::YAMLLoader;
 
 use serde::{Deserialize, Serialize};
 
 use failure::Error;
+use serde_json::Value;
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
 
 type Result<T> = std::result::Result<T, Error>;
 
 pub mod directory;
+pub mod markdown;
 pub mod yaml;
 
 pub trait Loader {
@@ -44,8 +47,8 @@ impl Metadata {
 #[serde(rename_all = "camelCase")]
 pub struct Content {
     pub metadata: Metadata,
-    pub front_matter: BTreeMap<String, serde_json::Value>,
-    pub content: serde_json::Value,
+    pub front_matter: serde_json::Map<String, Value>,
+    pub content: Value,
 }
 
 pub fn detect<P>(path: P) -> Option<Box<dyn Loader>>
@@ -62,6 +65,7 @@ where
         None => None,
         Some(str) => match str.to_str() {
             Some("yaml") | Some("yml") => Some(Box::new(YAMLLoader::new(path))),
+            Some("md") => Some(Box::new(MarkdownLoader::new(path))),
             _ => None,
         },
     }
