@@ -15,5 +15,5 @@ serde_yaml = "^0.8"
 jsonpath_lib = "^0.2"
 
 [dependencies.handlebars]
-version = "3.0.0-beta.4"
+version = "=3.0.0-beta.4"
 features = ["dir_source"]
