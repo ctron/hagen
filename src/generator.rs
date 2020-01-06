@@ -125,7 +125,7 @@ impl Generator<'_> {
             rule.selector, rule.template, rule.output_pattern
         );
 
-        let mut result = query(&rule.selector, &self.full_content)?;
+        let result = query(&rule.selector, &self.full_content)?;
 
         info!("Matches {} entries", result.len());
 

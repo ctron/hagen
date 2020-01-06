@@ -15,6 +15,9 @@ use failure::{Error, Fail};
 
 type Result<T> = std::result::Result<T, Error>;
 
+use handlebars::handlebars_helper;
+handlebars_helper!(hex: |v: i64| format!("0x{:x}", v));
+
 fn hag_exit(err: failure::Error) -> ! {
     for cause in Fail::iter_chain(err.as_fail()) {
         println!("{}: {}", cause.name().unwrap_or("Error"), cause);

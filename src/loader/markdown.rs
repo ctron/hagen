@@ -37,7 +37,38 @@ impl<P: AsRef<Path>> Loader for MarkdownLoader<P> {
     }
 }
 
+fn is_marker(line: Option<&str>) -> bool {
+    if let Some(s) = line {
+        s.trim().eq("---")
+    } else {
+        false
+    }
+}
+
 fn parse_front_matter(data: &String) -> (String, Option<Map<String, Value>>) {
-    todo!("Implement front matter parser");
-    (data.clone(), None)
+    let mut lines = data.lines();
+
+    if !is_marker(lines.next()) {
+        return (data.clone(), None);
+    }
+
+    let mut front_matter: Vec<String> = Vec::new();
+
+    while let Some(s) = lines.next() {
+        if is_marker(Some(s)) {
+            break;
+        }
+        front_matter.push(s.into());
+    }
+
+    let front_matter = front_matter.join("\n");
+
+    debug!("front matter: {}", front_matter);
+
+    let front_matter = serde_yaml::from_str::<Map<String, Value>>(&front_matter).ok();
+    let remainder = lines.collect::<Vec<_>>().join("\n");
+
+    debug!("front matter: {:?} -> {}", front_matter, remainder);
+
+    (remainder, front_matter)
 }
