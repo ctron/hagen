@@ -1,5 +1,6 @@
 mod error;
 mod generator;
+mod helper;
 mod loader;
 mod rules;
 

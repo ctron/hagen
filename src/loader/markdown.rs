@@ -4,7 +4,7 @@ use std::path::Path;
 
 type Result<T> = std::result::Result<T, Error>;
 
-use crate::loader::{Content, Loader, Metadata};
+use crate::loader::{Content, JsonBodyProvider, Loader, Metadata};
 
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
@@ -27,12 +27,14 @@ impl<P: AsRef<Path>> Loader for MarkdownLoader<P> {
 
         let data = read_to_string(path)?;
 
-        let front_matter = parse_front_matter(&data);
+        let front_matter = parse_front_matter(&data)?;
 
         Ok(Content {
-            metadata: Metadata::from_path(path, "md"),
+            metadata: Metadata::from_path(path, path.file_stem(), "md"),
             front_matter: front_matter.1.unwrap_or_default(),
-            content: serde_json::Value::String(front_matter.0),
+            content: Box::new(JsonBodyProvider::new(serde_json::Value::String(
+                front_matter.0,
+            ))),
         })
     }
 }
@@ -45,11 +47,11 @@ fn is_marker(line: Option<&str>) -> bool {
     }
 }
 
-fn parse_front_matter(data: &String) -> (String, Option<Map<String, Value>>) {
+fn parse_front_matter(data: &String) -> Result<(String, Option<Map<String, Value>>)> {
     let mut lines = data.lines();
 
     if !is_marker(lines.next()) {
-        return (data.clone(), None);
+        return Ok((data.clone(), None));
     }
 
     let mut front_matter: Vec<String> = Vec::new();
@@ -65,10 +67,10 @@ fn parse_front_matter(data: &String) -> (String, Option<Map<String, Value>>) {
 
     debug!("front matter: {}", front_matter);
 
-    let front_matter = serde_yaml::from_str::<Map<String, Value>>(&front_matter).ok();
+    let front_matter = serde_yaml::from_str::<Map<String, Value>>(&front_matter)?;
     let remainder = lines.collect::<Vec<_>>().join("\n");
 
     debug!("front matter: {:?} -> {}", front_matter, remainder);
 
-    (remainder, front_matter)
+    Ok((remainder, Some(front_matter)))
 }

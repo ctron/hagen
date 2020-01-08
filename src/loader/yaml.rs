@@ -4,10 +4,9 @@ use std::path::Path;
 
 type Result<T> = std::result::Result<T, Error>;
 
-use crate::loader::{Content, Loader, Metadata};
+use crate::loader::{Content, JsonBodyProvider, Loader, Metadata};
 
-use serde_json::Map;
-use std::collections::BTreeMap;
+use serde_json::{Map, Value};
 use std::fs::File;
 
 pub struct YAMLLoader<P: AsRef<Path>> {
@@ -26,12 +25,12 @@ impl<P: AsRef<Path>> Loader for YAMLLoader<P> {
         info!("Loading - YAML: {:?}", path);
 
         let reader = File::open(path)?;
-        let content = serde_yaml::from_reader(reader)?;
+        let content: Value = serde_yaml::from_reader(reader)?;
 
         Ok(Content {
-            metadata: Metadata::from_path(path, "yaml"),
+            metadata: Metadata::from_path(path, path.file_stem(), "yaml"),
             front_matter: Map::new(),
-            content,
+            content: Box::new(JsonBodyProvider::new(content)),
         })
     }
 }

@@ -20,10 +20,13 @@ use std::fs::File;
 
 type Result<T> = std::result::Result<T, Error>;
 
+use crate::helper::basic::{ExpandHelper, TimesHelper};
+use crate::helper::markdown::MarkdownifyHelper;
+
 pub struct Generator<'a> {
     root: PathBuf,
     handlebars: Handlebars<'a>,
-    content: Content,
+    content: Option<Content>,
 
     full_content: Value,
     compact_content: Value,
@@ -35,8 +38,18 @@ impl Generator<'_> {
     }
 
     pub fn new(root: &Path) -> Self {
+        // create instance
+
         let mut handlebars = Handlebars::new();
         handlebars.set_strict_mode(true);
+
+        // register helpers
+
+        handlebars.register_helper("times", Box::new(TimesHelper));
+        handlebars.register_helper("expand", Box::new(ExpandHelper));
+        handlebars.register_helper("markdownify", Box::new(MarkdownifyHelper));
+
+        // create generator
 
         Generator {
             root: root.to_path_buf(),
@@ -77,8 +90,8 @@ impl Generator<'_> {
         let content = DirectoryLoader::new(content).load_from()?;
 
         // convert to value
-        self.full_content = serde_json::to_value(&content)?;
-        self.compact_content = Generator::compact_content(&self.full_content);
+        self.full_content = content.to_value()?;
+        self.compact_content = Generator::compact_content(&self.full_content).unwrap_or_default();
 
         // dump content
         let writer = File::create(self.output().join("content.yaml"))?;
@@ -91,19 +104,22 @@ impl Generator<'_> {
     }
 
     // Compact the content tree to contain only "content" sections.
-    fn compact_content(v: &Value) -> Value {
+    fn compact_content(v: &Value) -> Option<Value> {
         match v {
             Value::Object(m) => match m.get("content".into()) {
                 Some(Value::Object(mc)) => {
-                    let mut r = Map::new();
+                    let mut result = Map::new();
                     for (k, v) in mc {
-                        r.insert(k.clone(), Generator::compact_content(v));
+                        if let Some(x) = Generator::compact_content(v) {
+                            result.insert(k.clone(), x);
+                        }
                     }
-                    Value::Object(r)
+                    Some(Value::Object(result))
                 }
-                _ => v.clone(),
+                Some(x) => Some(x.clone()),
+                _ => None,
             },
-            _ => v.clone(),
+            _ => Some(v.clone()),
         }
     }
 

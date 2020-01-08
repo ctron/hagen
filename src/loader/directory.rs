@@ -6,9 +6,27 @@ use std::path::Path;
 use failure::Error;
 type Result<T> = std::result::Result<T, Error>;
 
-use crate::loader::{detect, path_to_string, Content, Loader, Metadata};
-use serde_json::Map;
+use crate::loader::{
+    detect, path_to_string, BodyProvider, Content, JsonBodyProvider, Loader, Metadata,
+};
+use serde_json::{Map, Value};
 use std::collections::BTreeMap;
+
+pub struct DirectoryBodyProvider {
+    body: BTreeMap<String, Content>,
+}
+
+impl BodyProvider for DirectoryBodyProvider {
+    fn body(&self) -> Result<Value> {
+        let mut m = Map::with_capacity(self.body.len());
+
+        for (k, v) in &self.body {
+            m.insert(k.clone(), v.to_value()?);
+        }
+
+        Ok(Value::Object(m))
+    }
+}
 
 pub struct DirectoryLoader<P: AsRef<Path>> {
     path: P,
@@ -33,15 +51,15 @@ impl<P: AsRef<Path>> Loader for DirectoryLoader<P> {
             let path = entry.path();
             if let Some(loader) = detect(path.clone()) {
                 let child = loader.load_from()?;
-                let child_name = path_to_string(path.file_stem());
+                let child_name = child.metadata.name.clone();
                 content.insert(child_name, child);
             }
         }
 
         Ok(Content {
-            metadata: Metadata::from_path(path, "directory"),
+            metadata: Metadata::from_path(path, path.file_name(), "directory"),
             front_matter: Map::new(),
-            content: serde_json::to_value(content)?,
+            content: Box::new(DirectoryBodyProvider { body: content }),
         })
     }
 }

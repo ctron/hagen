@@ -7,7 +7,7 @@ use crate::loader::yaml::YAMLLoader;
 use serde::{Deserialize, Serialize};
 
 use failure::Error;
-use serde_json::Value;
+use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
 
@@ -32,23 +32,60 @@ pub struct Metadata {
 }
 
 impl Metadata {
-    pub fn from_path<P: AsRef<Path>, S: Into<String>>(path: P, type_name: S) -> Metadata {
+    pub fn from_path<P: AsRef<Path>, S: Into<String>>(
+        path: P,
+        name: Option<&OsStr>,
+        type_name: S,
+    ) -> Metadata {
         let path = path.as_ref();
         Metadata {
-            name: path_to_string(path.file_stem()),
             path: path_to_string(path.parent()),
+            name: path_to_string(name),
             filename: path_to_string(path.file_name()),
             type_name: type_name.into(),
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
 pub struct Content {
     pub metadata: Metadata,
     pub front_matter: serde_json::Map<String, Value>,
-    pub content: Value,
+    pub content: Box<dyn BodyProvider>,
+}
+
+impl Content {
+    pub fn to_value(&self) -> Result<Value> {
+        let mut m = Map::new();
+
+        m.insert("metadata".into(), serde_json::to_value(&self.metadata)?);
+        m.insert(
+            "frontMatter".into(),
+            Value::Object(self.front_matter.clone()),
+        );
+        m.insert("content".into(), self.content.body()?);
+
+        Ok(Value::Object(m))
+    }
+}
+
+trait BodyProvider {
+    fn body(&self) -> Result<Value>;
+}
+
+pub struct JsonBodyProvider {
+    body: Value,
+}
+
+impl JsonBodyProvider {
+    fn new(body: Value) -> JsonBodyProvider {
+        JsonBodyProvider { body }
+    }
+}
+
+impl BodyProvider for JsonBodyProvider {
+    fn body(&self) -> Result<Value> {
+        Ok(self.body.clone())
+    }
 }
 
 pub fn detect<P>(path: P) -> Option<Box<dyn Loader>>
