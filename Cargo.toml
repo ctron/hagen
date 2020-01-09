@@ -1,5 +1,5 @@
 [package]
-name = "honest-android-games"
+name = "hagen"
 version = "0.1.0"
 authors = ["Jens Reimann <ctron@dentrassi.de>"]
 edition = "2018"
