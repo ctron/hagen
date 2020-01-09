@@ -25,7 +25,7 @@ impl HelperDef for TimesHelper {
             match n.value().as_u64() {
                 Some(n) => {
                     info!("Repeating {} times", n);
-                    for i in 0..n {
+                    for _ in 0..n {
                         body.render(r, ctx, rc, out)?;
                     }
                 }
@@ -46,12 +46,12 @@ impl HelperDef for ExpandHelper {
         h: &Helper,
         hb: &Handlebars,
         ctx: &Context,
-        rc: &mut RenderContext,
+        _: &mut RenderContext,
         out: &mut dyn Output,
     ) -> HelperResult {
         let value = h.param(0).ok_or(RenderError::new("Missing value"))?;
 
-        let mut template = value
+        let template = value
             .value()
             .as_str()
             .ok_or(RenderError::new("Unable to get template data as string"))?;
@@ -61,6 +61,31 @@ impl HelperDef for ExpandHelper {
         })?;
 
         out.write(&result)?;
+
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct RelativeUrlHelper;
+
+impl HelperDef for RelativeUrlHelper {
+    fn call<'reg: 'rc, 'rc>(
+        &self,
+        h: &Helper<'reg, 'rc>,
+        r: &'reg Handlebars,
+        ctx: &'rc Context,
+        rc: &mut RenderContext<'reg>,
+        out: &mut dyn Output,
+    ) -> HelperResult {
+        let url = h
+            .param(0)
+            .ok_or(RenderError::new("Missing URL parameter for relative_url"))?
+            .value()
+            .as_str()
+            .ok_or(RenderError::new("Wrong value type of URL. Must be string."))?;
+
+        out.write(url)?;
 
         Ok(())
     }

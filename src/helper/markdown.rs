@@ -10,9 +10,9 @@ impl HelperDef for MarkdownifyHelper {
     fn call<'reg: 'rc, 'rc>(
         &self,
         h: &Helper<'reg, 'rc>,
-        r: &'reg Handlebars,
-        ctx: &'rc Context,
-        rc: &mut RenderContext<'reg>,
+        _: &'reg Handlebars,
+        _: &'rc Context,
+        _: &mut RenderContext<'reg>,
         out: &mut dyn Output,
     ) -> HelperResult {
         let markdown_input = h

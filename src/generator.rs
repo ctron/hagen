@@ -7,7 +7,7 @@ use log::{debug, info};
 
 use crate::loader::directory::DirectoryLoader;
 use crate::loader::{Content, Loader};
-use crate::rules::{Render, Rule};
+use crate::rules::{Asset, Render, Rule};
 
 use crate::error;
 use crate::error::GeneratorError;
@@ -18,10 +18,15 @@ use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 use std::fs::File;
 
+use fs_extra::dir::{copy, CopyOptions};
+
 type Result<T> = std::result::Result<T, Error>;
 
-use crate::helper::basic::{ExpandHelper, TimesHelper};
+use crate::helper::basic::{ExpandHelper, RelativeUrlHelper, TimesHelper};
 use crate::helper::markdown::MarkdownifyHelper;
+use fs_extra::copy_items;
+
+use crate::copy;
 
 pub struct Generator<'a> {
     root: PathBuf,
@@ -37,7 +42,7 @@ impl Generator<'_> {
         self.root.join("output")
     }
 
-    pub fn new(root: &Path) -> Self {
+    pub fn new<P: AsRef<Path>>(root: P) -> Self {
         // create instance
 
         let mut handlebars = Handlebars::new();
@@ -47,12 +52,14 @@ impl Generator<'_> {
 
         handlebars.register_helper("times", Box::new(TimesHelper));
         handlebars.register_helper("expand", Box::new(ExpandHelper));
+        handlebars.register_helper("relative_url", Box::new(RelativeUrlHelper));
+
         handlebars.register_helper("markdownify", Box::new(MarkdownifyHelper));
 
         // create generator
 
         Generator {
-            root: root.to_path_buf(),
+            root: root.as_ref().to_path_buf(),
             handlebars,
             content: Default::default(),
             full_content: Default::default(),
@@ -74,7 +81,7 @@ impl Generator<'_> {
         info!("Loading render rules");
         let render = Render::load_from(self.root.join("render.yaml"))?;
 
-        self.render(&render)?;
+        self.build(&render)?;
 
         // render pages
 
@@ -123,15 +130,36 @@ impl Generator<'_> {
         }
     }
 
-    fn render(&self, render: &Render) -> Result<()> {
-        info!("Rendering content");
-
+    fn build(&self, render: &Render) -> Result<()> {
         // render all rules
+        info!("Rendering content");
         for rule in &render.rules {
             self.render_rule(&rule)?;
         }
 
+        // process assets
+        info!("Processing assets");
+        for a in &render.assets {
+            self.process_asset(a)?;
+        }
+
+        info!("Done");
         // done
+        Ok(())
+    }
+
+    fn process_asset(&self, asset: &Asset) -> Result<()> {
+        let from = self.root.join(&asset.dir);
+        let target = self.root.join("output").join(&asset.to);
+
+        info!("Copying assets: {:?} -> {:?}", &from, &target);
+
+        fs::create_dir_all(&target)?;
+
+        let mut options = CopyOptions::new();
+        options.copy_inside = true;
+        copy::copy(from, target, &options)?;
+
         Ok(())
     }
 
@@ -194,6 +222,7 @@ impl Generator<'_> {
         let p = p.as_path();
 
         if p.exists() {
+            info!("Cleaning up: {:?}", self.output());
             fs::remove_dir_all(self.output().as_path())?;
         }
 

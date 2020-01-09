@@ -7,8 +7,7 @@ type Result<T> = std::result::Result<T, Error>;
 use crate::loader::{Content, JsonBodyProvider, Loader, Metadata};
 
 use serde_json::{Map, Value};
-use std::collections::BTreeMap;
-use std::fs::{read_to_string, File};
+use std::fs::read_to_string;
 
 pub struct MarkdownLoader<P: AsRef<Path>> {
     path: P,

@@ -68,7 +68,7 @@ impl Content {
     }
 }
 
-trait BodyProvider {
+pub trait BodyProvider {
     fn body(&self) -> Result<Value>;
 }
 

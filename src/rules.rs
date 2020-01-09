@@ -20,6 +20,13 @@ pub struct Rule {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Render {
     pub rules: Vec<Rule>,
+    pub assets: Vec<Asset>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Asset {
+    pub dir: String,
+    pub to: String,
 }
 
 impl Render {
