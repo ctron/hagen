@@ -22,8 +22,6 @@ fn full_url<'reg: 'rc, 'rc>(
     // start with the site base name
     let result = Url::parse(&output.site_url).map_err(|err| RenderError::with(err))?;
 
-    info!("URL1: {:?}", result);
-
     // if we have an absolute URL, then absolute is still relative to the site base
     let result = if !url.starts_with("/") {
         // the url is relative to the page, not the site
@@ -39,8 +37,6 @@ fn full_url<'reg: 'rc, 'rc>(
 
     // append the url
     let result = result;
-
-    info!("URL3: {:?}", result);
 
     Ok(result)
 }

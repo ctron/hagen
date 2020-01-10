@@ -26,17 +26,18 @@ impl BodyProvider for DirectoryBodyProvider {
     }
 }
 
-pub struct DirectoryLoader<P: AsRef<Path>> {
-    path: P,
+pub struct DirectoryLoader<P1: AsRef<Path>, P2: AsRef<Path>> {
+    root: P1,
+    path: P2,
 }
 
-impl<P: AsRef<Path>> DirectoryLoader<P> {
-    pub fn new(path: P) -> Self {
-        DirectoryLoader { path }
+impl<P1: AsRef<Path>, P2: AsRef<Path>> DirectoryLoader<P1, P2> {
+    pub fn new(root: P1, path: P2) -> Self {
+        DirectoryLoader { root, path }
     }
 }
 
-impl<P: AsRef<Path>> Loader for DirectoryLoader<P> {
+impl<P1: AsRef<Path>, P2: AsRef<Path>> Loader for DirectoryLoader<P1, P2> {
     fn load_from(&self) -> Result<Content> {
         let path = self.path.as_ref();
         info!("Loading - directory: {:?}", path);
@@ -47,7 +48,7 @@ impl<P: AsRef<Path>> Loader for DirectoryLoader<P> {
             let entry = entry?;
 
             let path = entry.path();
-            if let Some(loader) = detect(path.clone()) {
+            if let Some(loader) = detect(&self.root, &path) {
                 let child = loader.load_from()?;
                 let child_name = child.metadata.name.clone();
                 content.insert(child_name, child);
@@ -55,7 +56,7 @@ impl<P: AsRef<Path>> Loader for DirectoryLoader<P> {
         }
 
         Ok(Content {
-            metadata: Metadata::from_path(path, path.file_name(), "directory"),
+            metadata: Metadata::from_path(&self.root, path, path.file_name(), "directory"),
             front_matter: Map::new(),
             content: Box::new(DirectoryBodyProvider { body: content }),
         })

@@ -31,6 +31,7 @@ use fs_extra::copy_items;
 use crate::copy;
 use crate::helper::time::TimeHelper;
 use crate::helper::url::{AbsoluteUrlHelper, RelativeUrlHelper};
+use relative_path::RelativePath;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -142,7 +143,7 @@ impl Generator<'_> {
         info!("Loading content: {:?}", content);
 
         // load content
-        let content = DirectoryLoader::new(content).load_from()?;
+        let content = DirectoryLoader::new(&self.root, content).load_from()?;
 
         // convert to value
         self.full_content = content.to_value()?;
@@ -213,11 +214,11 @@ impl Generator<'_> {
 
     fn render_rule(&self, rule: &Rule) -> Result<()> {
         info!(
-            "Render rule: {} -> {} -> {}",
-            rule.selector, rule.template, rule.output_pattern
+            "Render rule: {:?}:{:?} -> {} -> {}",
+            rule.selector_type, rule.selector, rule.template, rule.output_pattern
         );
 
-        let result = query(&rule.selector, &self.full_content)?;
+        let result = rule.processor()?.query(&self.full_content)?;
 
         info!("Matches {} entries", result.len());
 
@@ -237,7 +238,7 @@ impl Generator<'_> {
             .handlebars
             .render_template(&rule.output_pattern, context)?;
         let template = self.handlebars.render_template(&rule.template, context)?;
-        let target = self.output().join(Path::new(&path));
+        let target = RelativePath::new(&path).to_path(self.output());
 
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent)?;
@@ -286,25 +287,3 @@ impl Generator<'_> {
         Ok(())
     }
 }
-
-fn query<'a>(s: &'a str, content: &'a Value) -> Result<Vec<&'a Value>> {
-    let mut selector = Selector::new();
-    let selector = selector.str_path(&s).map_err(|e| GeneratorError::from(e))?;
-
-    match selector.value(&content).select() {
-        Err(err) => Err(GeneratorError::from(err).into()),
-        Ok(v) => Ok(v),
-    }
-    .map(|v| -> Vec<&Value> {
-        let mut v = v.clone();
-        v.retain(|e| e.is_object());
-        v
-    })
-}
-
-/*
-fn query_x<'a>(s: &'a str, content: &'a Value) -> Result<Vec<&'a Value>> {
-    let result = jq_rs::run(str, serde_json::to_string(content)?.into())?;
-    serde_json::from_str(&result)?
-}
-*/

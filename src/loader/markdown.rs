@@ -9,17 +9,18 @@ use crate::loader::{Content, JsonBodyProvider, Loader, Metadata};
 use serde_json::{Map, Value};
 use std::fs::read_to_string;
 
-pub struct MarkdownLoader<P: AsRef<Path>> {
-    path: P,
+pub struct MarkdownLoader<P1: AsRef<Path>, P2: AsRef<Path>> {
+    root: P1,
+    path: P2,
 }
 
-impl<P: AsRef<Path>> MarkdownLoader<P> {
-    pub fn new(path: P) -> Self {
-        MarkdownLoader { path }
+impl<P1: AsRef<Path>, P2: AsRef<Path>> MarkdownLoader<P1, P2> {
+    pub fn new(root: P1, path: P2) -> Self {
+        MarkdownLoader { root, path }
     }
 }
 
-impl<P: AsRef<Path>> Loader for MarkdownLoader<P> {
+impl<P1: AsRef<Path>, P2: AsRef<Path>> Loader for MarkdownLoader<P1, P2> {
     fn load_from(&self) -> Result<Content> {
         let path = self.path.as_ref();
         info!("Loading - Markdown: {:?}", path);
@@ -29,7 +30,7 @@ impl<P: AsRef<Path>> Loader for MarkdownLoader<P> {
         let front_matter = parse_front_matter(&data)?;
 
         Ok(Content {
-            metadata: Metadata::from_path(path, path.file_stem(), "md"),
+            metadata: Metadata::from_path(&self.root, path, path.file_stem(), "md"),
             front_matter: front_matter.1.unwrap_or_default(),
             content: Box::new(JsonBodyProvider::new(serde_json::Value::String(
                 front_matter.0,
