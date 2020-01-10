@@ -5,7 +5,6 @@ use handlebars::{Context, Handlebars};
 
 use log::{debug, info};
 
-use crate::error;
 use crate::error::GeneratorError;
 use crate::error::GeneratorError::GenericError;
 use crate::loader::directory::DirectoryLoader;
@@ -30,8 +29,8 @@ use crate::helper::markdown::MarkdownifyHelper;
 use fs_extra::copy_items;
 
 use crate::copy;
+use crate::helper::time::TimeHelper;
 use crate::helper::url::{AbsoluteUrlHelper, RelativeUrlHelper};
-use fs_extra::error::ErrorKind::Other;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -101,6 +100,8 @@ impl Generator<'_> {
         handlebars.register_helper("relative_url", Box::new(RelativeUrlHelper));
 
         handlebars.register_helper("markdownify", Box::new(MarkdownifyHelper));
+
+        handlebars.register_helper("time", Box::new(TimeHelper));
 
         // create generator
 

@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 
 use failure::Error;
 use serde_json::{Map, Value};
-use std::collections::BTreeMap;
 use std::ffi::OsStr;
 
 type Result<T> = std::result::Result<T, Error>;

@@ -6,7 +6,7 @@ use std::path::Path;
 use failure::Error;
 type Result<T> = std::result::Result<T, Error>;
 
-use crate::loader::{detect, BodyProvider, Content, JsonBodyProvider, Loader, Metadata};
+use crate::loader::{detect, BodyProvider, Content, Loader, Metadata};
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 

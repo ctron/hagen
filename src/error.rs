@@ -1,5 +1,4 @@
-use crate::error::GeneratorError::GenericError;
-use failure::{AsFail, Error, Fail};
+use failure::{Error, Fail};
 use handlebars::{RenderError, TemplateFileError};
 use jsonpath_lib::JsonPathError;
 

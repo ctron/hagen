@@ -2,7 +2,6 @@ use crate::generator;
 use handlebars::{
     Context, Handlebars, Helper, HelperDef, HelperResult, Output, RenderContext, RenderError,
 };
-use relative_path::RelativePathBuf;
 use url::Url;
 
 use log::info;

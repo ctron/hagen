@@ -1,13 +1,9 @@
 use handlebars::{
     Context, Handlebars, Helper, HelperDef, HelperResult, Output, RenderContext, RenderError,
-    Renderable, TemplateRenderError,
+    Renderable,
 };
 
-use crate::generator;
 use log::{debug, info};
-use pathdiff::diff_paths;
-use relative_path::RelativePath;
-use url::Url;
 
 #[derive(Clone, Copy)]
 pub struct TimesHelper;
