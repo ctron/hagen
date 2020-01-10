@@ -3,7 +3,11 @@ use handlebars::{
     Renderable, TemplateRenderError,
 };
 
+use crate::generator;
 use log::{debug, info};
+use pathdiff::diff_paths;
+use relative_path::RelativePath;
+use url::Url;
 
 #[derive(Clone, Copy)]
 pub struct TimesHelper;
@@ -61,31 +65,6 @@ impl HelperDef for ExpandHelper {
         })?;
 
         out.write(&result)?;
-
-        Ok(())
-    }
-}
-
-#[derive(Clone, Copy)]
-pub struct RelativeUrlHelper;
-
-impl HelperDef for RelativeUrlHelper {
-    fn call<'reg: 'rc, 'rc>(
-        &self,
-        h: &Helper<'reg, 'rc>,
-        r: &'reg Handlebars,
-        ctx: &'rc Context,
-        rc: &mut RenderContext<'reg>,
-        out: &mut dyn Output,
-    ) -> HelperResult {
-        let url = h
-            .param(0)
-            .ok_or(RenderError::new("Missing URL parameter for relative_url"))?
-            .value()
-            .as_str()
-            .ok_or(RenderError::new("Wrong value type of URL. Must be string."))?;
-
-        out.write(url)?;
 
         Ok(())
     }

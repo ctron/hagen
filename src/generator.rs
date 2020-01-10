@@ -1,34 +1,74 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use handlebars::Handlebars;
+use handlebars::{Context, Handlebars};
 
 use log::{debug, info};
-
-use crate::loader::directory::DirectoryLoader;
-use crate::loader::{Content, Loader};
-use crate::rules::{Asset, Render, Rule};
 
 use crate::error;
 use crate::error::GeneratorError;
 use crate::error::GeneratorError::GenericError;
+use crate::loader::directory::DirectoryLoader;
+use crate::loader::{Content, Loader};
+use crate::rules::{Asset, Render, Rule};
+
 use failure::Error;
 use jsonpath_lib::Selector;
+
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+
 use std::collections::BTreeMap;
 use std::fs::File;
 
 use fs_extra::dir::{copy, CopyOptions};
 
-type Result<T> = std::result::Result<T, Error>;
+type Result<T> = std::result::Result<T, GeneratorError>;
 
-use crate::helper::basic::{ExpandHelper, RelativeUrlHelper, TimesHelper};
+use crate::helper::basic::{ExpandHelper, TimesHelper};
 use crate::helper::markdown::MarkdownifyHelper;
 use fs_extra::copy_items;
 
 use crate::copy;
+use crate::helper::url::{AbsoluteUrlHelper, RelativeUrlHelper};
+use fs_extra::error::ErrorKind::Other;
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Output {
+    // path of the output file
+    pub path: String,
+    // the site base name
+    pub site_url: String,
+}
+
+impl Output {
+    pub fn new<S1, S2>(site_url: S1, path: S2) -> Self
+    where
+        S1: Into<String>,
+        S2: Into<String>,
+    {
+        Output {
+            path: path.into(),
+            site_url: site_url.into(),
+        }
+    }
+
+    pub fn from(ctx: &Context) -> Result<Self> {
+        let output = ctx.data().as_object().ok_or(GeneratorError::Error(
+            "'output' variable is missing or not an object".into(),
+        ))?;
+        let output = output.get("output".into()).ok_or(GeneratorError::Error(
+            "'output' variable is missing or not an object".into(),
+        ))?;
+
+        Ok(serde_json::from_value(output.clone())?)
+    }
+}
 
 pub struct Generator<'a> {
+    site_url: String,
+
     root: PathBuf,
     handlebars: Handlebars<'a>,
     content: Option<Content>,
@@ -42,7 +82,11 @@ impl Generator<'_> {
         self.root.join("output")
     }
 
-    pub fn new<P: AsRef<Path>>(root: P) -> Self {
+    pub fn new<P, S>(root: P, site_url: S) -> Self
+    where
+        P: AsRef<Path>,
+        S: Into<String>,
+    {
         // create instance
 
         let mut handlebars = Handlebars::new();
@@ -52,6 +96,8 @@ impl Generator<'_> {
 
         handlebars.register_helper("times", Box::new(TimesHelper));
         handlebars.register_helper("expand", Box::new(ExpandHelper));
+
+        handlebars.register_helper("absolute_url", Box::new(AbsoluteUrlHelper));
         handlebars.register_helper("relative_url", Box::new(RelativeUrlHelper));
 
         handlebars.register_helper("markdownify", Box::new(MarkdownifyHelper));
@@ -59,6 +105,7 @@ impl Generator<'_> {
         // create generator
 
         Generator {
+            site_url: site_url.into(),
             root: root.as_ref().to_path_buf(),
             handlebars,
             content: Default::default(),
@@ -183,17 +230,22 @@ impl Generator<'_> {
         Ok(())
     }
 
-    fn process_render(&self, rule: &Rule, entry: &Value) -> Result<()> {
+    fn process_render(&self, rule: &Rule, context: &Value) -> Result<()> {
         // eval
         let path = self
             .handlebars
-            .render_template(&rule.output_pattern, entry)?;
-        let template = self.handlebars.render_template(&rule.template, entry)?;
+            .render_template(&rule.output_pattern, context)?;
+        let template = self.handlebars.render_template(&rule.template, context)?;
         let target = self.output().join(Path::new(&path));
 
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent)?;
         }
+
+        // page data
+
+        let output = Output::new(&self.site_url, &path);
+        let output = serde_json::to_value(&output)?;
 
         // render
         info!("Render '{}' with '{}'", path, template);
@@ -202,15 +254,17 @@ impl Generator<'_> {
         let writer = File::create(target)?;
 
         self.handlebars
-            .render_to_write(&template, &self.data(entry), writer)?;
+            .render_to_write(&template, &self.data(&output, context), writer)?;
 
         // done
         Ok(())
     }
 
-    fn data(&self, entry: &Value) -> Value {
+    fn data(&self, output: &Value, context: &Value) -> Value {
         let mut data = serde_json::value::Map::new();
-        data.insert("page".into(), entry.clone());
+
+        data.insert("output".into(), output.clone());
+        data.insert("context".into(), context.clone());
         data.insert("full".into(), self.full_content.clone());
         data.insert("compact".into(), self.compact_content.clone());
 

@@ -14,7 +14,6 @@ use log::{debug, info};
 
 use env_logger::Env;
 use failure::{Error, Fail};
-use std::ffi::OsStr;
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -39,7 +38,7 @@ fn hag_run() -> Result<()> {
 
     info!("Root path: {:?}", root);
 
-    let mut generator = Generator::new(root);
+    let mut generator = Generator::new(root, "http://localhost:8080");
     Ok(generator.run()?)
 }
 
