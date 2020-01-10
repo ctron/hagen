@@ -143,7 +143,7 @@ impl Generator<'_> {
         info!("Loading content: {:?}", content);
 
         // load content
-        let content = DirectoryLoader::new(&self.root, content).load_from()?;
+        let content = DirectoryLoader::new(&content, &content).load_from()?;
 
         // convert to value
         self.full_content = content.to_value()?;

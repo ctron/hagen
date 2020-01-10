@@ -10,6 +10,8 @@ use failure::Error;
 use relative_path::RelativePath;
 use serde_json::{Map, Value};
 use std::ffi::OsStr;
+use std::fmt::Debug;
+use std::net::Shutdown::Read;
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -34,13 +36,19 @@ pub struct Metadata {
 impl Metadata {
     pub fn from_path<P1, P2, S>(root: P1, path: P2, name: Option<&OsStr>, type_name: S) -> Metadata
     where
-        P1: AsRef<Path>,
-        P2: AsRef<Path>,
+        P1: AsRef<Path> + Debug,
+        P2: AsRef<Path> + Debug,
         S: Into<String>,
     {
+        println!("X0: {:?}", path);
+
         let path = path.as_ref();
+        println!("X0: {:?}", path.parent());
         let parent = path_to_string(path.parent());
         let root = path_to_string(Some(root.as_ref()));
+
+        println!("X1: {:?}", parent);
+        println!("X2: {:?}", root);
 
         let parent = if parent.starts_with(&root) {
             let len = root.len();
@@ -70,9 +78,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_path() {
+    fn test_path_2() {
         let m = Metadata::from_path(&"/root", &"/root/foo/bar", None, "type");
         assert_eq!(m.parent, "/foo");
+    }
+
+    #[test]
+    fn test_path_3() {
+        let m = Metadata::from_path(&"/root", &"/root/foo/bar/baz.md", None, "type");
+        assert_eq!(m.parent, "/foo/bar");
     }
 
     #[test]
@@ -161,9 +175,10 @@ where
 fn path_to_string<P: AsRef<OsStr>>(path: Option<P>) -> String {
     match path {
         None => String::default(),
-        Some(s) => RelativePath::from_path(s.as_ref())
-            .ok()
-            .map(|s| s.as_str().to_string())
+        Some(s) => s
+            .as_ref()
+            .to_str()
+            .map(|s| s.to_string())
             .unwrap_or_default(),
     }
 }

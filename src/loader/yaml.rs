@@ -7,6 +7,7 @@ type Result<T> = std::result::Result<T, Error>;
 use crate::loader::{Content, JsonBodyProvider, Loader, Metadata};
 
 use serde_json::{Map, Value};
+use std::fmt::Debug;
 use std::fs::File;
 
 pub struct YAMLLoader<P1: AsRef<Path>, P2: AsRef<Path>> {
@@ -20,7 +21,7 @@ impl<P1: AsRef<Path>, P2: AsRef<Path>> YAMLLoader<P1, P2> {
     }
 }
 
-impl<P1: AsRef<Path>, P2: AsRef<Path>> Loader for YAMLLoader<P1, P2> {
+impl<P1: AsRef<Path> + Debug, P2: AsRef<Path> + Debug> Loader for YAMLLoader<P1, P2> {
     fn load_from(&self) -> Result<Content> {
         let path = self.path.as_ref();
         info!("Loading - YAML: {:?}", path);

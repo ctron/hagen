@@ -9,6 +9,7 @@ type Result<T> = std::result::Result<T, Error>;
 use crate::loader::{detect, BodyProvider, Content, Loader, Metadata};
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
+use std::fmt::Debug;
 
 pub struct DirectoryBodyProvider {
     body: BTreeMap<String, Content>,
@@ -37,7 +38,7 @@ impl<P1: AsRef<Path>, P2: AsRef<Path>> DirectoryLoader<P1, P2> {
     }
 }
 
-impl<P1: AsRef<Path>, P2: AsRef<Path>> Loader for DirectoryLoader<P1, P2> {
+impl<P1: AsRef<Path> + Debug, P2: AsRef<Path> + Debug> Loader for DirectoryLoader<P1, P2> {
     fn load_from(&self) -> Result<Content> {
         let path = self.path.as_ref();
         info!("Loading - directory: {:?}", path);
