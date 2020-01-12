@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use globset::{Glob, GlobSetBuilder};
-use log::info;
+use log::{debug, info};
 use walkdir::WalkDir;
 
 type Result<T> = std::result::Result<T, Error>;
@@ -24,13 +24,13 @@ where
     let set = builder.build()?;
 
     for item in WalkDir::new(&from).contents_first(false).follow_links(true) {
-        info!("Found: {:?}", item);
+        debug!("Found: {:?}", item);
         match item {
             Ok(entry) => {
                 let source = entry.path();
                 let relative = source.strip_prefix(from)?;
 
-                if set.is_match(relative) {
+                if set.is_empty() || set.is_match(relative) {
                     let target = to.join(relative);
 
                     if source.is_file() {
