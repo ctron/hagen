@@ -56,12 +56,6 @@ impl From<JsonPathError> for GeneratorError {
     }
 }
 
-impl From<fs_extra::error::Error> for GeneratorError {
-    fn from(err: fs_extra::error::Error) -> Self {
-        GeneratorError::GenericError(err.into())
-    }
-}
-
 impl From<handlebars::TemplateRenderError> for GeneratorError {
     fn from(err: handlebars::TemplateRenderError) -> Self {
         GeneratorError::GenericError(err.into())

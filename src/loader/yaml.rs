@@ -1,5 +1,5 @@
 use failure::Error;
-use log::{debug, info};
+use log::info;
 use std::path::Path;
 
 type Result<T> = std::result::Result<T, Error>;

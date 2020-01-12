@@ -46,6 +46,8 @@ impl<P1: AsRef<Path> + Debug, P2: AsRef<Path> + Debug> Loader for DirectoryLoade
         let mut content: BTreeMap<String, Content> = BTreeMap::new();
 
         for entry in fs::read_dir(path)? {
+            debug!("  Child: {:?}", entry);
+
             let entry = entry?;
 
             let path = entry.path();

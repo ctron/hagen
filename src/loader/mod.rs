@@ -1,21 +1,22 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::loader::directory::DirectoryLoader;
+use crate::loader::html::HtmlLoader;
 use crate::loader::markdown::MarkdownLoader;
 use crate::loader::yaml::YAMLLoader;
 
 use serde::{Deserialize, Serialize};
 
 use failure::Error;
-use relative_path::RelativePath;
 use serde_json::{Map, Value};
 use std::ffi::OsStr;
 use std::fmt::Debug;
-use std::net::Shutdown::Read;
 
 type Result<T> = std::result::Result<T, Error>;
 
 pub mod directory;
+pub mod front_matter;
+pub mod html;
 pub mod markdown;
 pub mod yaml;
 
@@ -161,6 +162,7 @@ where
                 root.as_ref().to_path_buf(),
                 path,
             ))),
+            Some("html") => Some(Box::new(HtmlLoader::new(root.as_ref().to_path_buf(), path))),
             _ => None,
         },
     }

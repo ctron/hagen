@@ -4,14 +4,12 @@ use std::fs::File;
 use serde_yaml;
 use std::io;
 
-use crate::loader::JsonBodyProvider;
 use jsonpath_lib::Selector;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::path::Path;
 
 use crate::error::GeneratorError;
-use crate::error::GeneratorError::GenericError;
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -37,7 +35,8 @@ pub struct Render {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Asset {
     pub dir: String,
-    pub to: String,
+    pub to: Option<String>,
+    pub glob: Option<String>,
 }
 
 impl Render {

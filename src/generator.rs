@@ -6,27 +6,19 @@ use handlebars::{Context, Handlebars};
 use log::{debug, info};
 
 use crate::error::GeneratorError;
-use crate::error::GeneratorError::GenericError;
 use crate::loader::directory::DirectoryLoader;
 use crate::loader::{Content, Loader};
 use crate::rules::{Asset, Render, Rule};
 
-use failure::Error;
-use jsonpath_lib::Selector;
-
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use std::collections::BTreeMap;
 use std::fs::File;
-
-use fs_extra::dir::{copy, CopyOptions};
 
 type Result<T> = std::result::Result<T, GeneratorError>;
 
-use crate::helper::basic::{ExpandHelper, TimesHelper};
+use crate::helper::basic::{ConcatHelper, ExpandHelper, TimesHelper};
 use crate::helper::markdown::MarkdownifyHelper;
-use fs_extra::copy_items;
 
 use crate::copy;
 use crate::helper::time::TimeHelper;
@@ -58,9 +50,11 @@ impl Output {
         let output = ctx.data().as_object().ok_or(GeneratorError::Error(
             "'output' variable is missing or not an object".into(),
         ))?;
-        let output = output.get("output".into()).ok_or(GeneratorError::Error(
-            "'output' variable is missing or not an object".into(),
-        ))?;
+        let output = output
+            .get(&"output".to_string())
+            .ok_or(GeneratorError::Error(
+                "'output' variable is missing or not an object".into(),
+            ))?;
 
         Ok(serde_json::from_value(output.clone())?)
     }
@@ -96,6 +90,7 @@ impl Generator<'_> {
 
         handlebars.register_helper("times", Box::new(TimesHelper));
         handlebars.register_helper("expand", Box::new(ExpandHelper));
+        handlebars.register_helper("concat", Box::new(ConcatHelper));
 
         handlebars.register_helper("absolute_url", Box::new(AbsoluteUrlHelper));
         handlebars.register_helper("relative_url", Box::new(RelativeUrlHelper));
@@ -117,6 +112,8 @@ impl Generator<'_> {
     }
 
     pub fn run(&mut self) -> Result<()> {
+        debug!("Running generator");
+
         self.handlebars
             .register_templates_directory(".hbs", self.root.join("templates"))?;
 
@@ -162,7 +159,7 @@ impl Generator<'_> {
     // Compact the content tree to contain only "content" sections.
     fn compact_content(v: &Value) -> Option<Value> {
         match v {
-            Value::Object(m) => match m.get("content".into()) {
+            Value::Object(m) => match m.get("content") {
                 Some(Value::Object(mc)) => {
                     let mut result = Map::new();
                     for (k, v) in mc {
@@ -199,15 +196,17 @@ impl Generator<'_> {
 
     fn process_asset(&self, asset: &Asset) -> Result<()> {
         let from = self.root.join(&asset.dir);
-        let target = self.root.join("output").join(&asset.to);
+
+        let mut target = self.root.join("output");
+        if let Some(ref to) = asset.to {
+            target = target.join(to);
+        }
 
         info!("Copying assets: {:?} -> {:?}", &from, &target);
 
         fs::create_dir_all(&target)?;
 
-        let mut options = CopyOptions::new();
-        options.copy_inside = true;
-        copy::copy(from, target, &options)?;
+        copy::copy_dir(&from, &target, asset.glob.as_ref())?;
 
         Ok(())
     }

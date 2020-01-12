@@ -3,7 +3,7 @@ use handlebars::{
     Renderable,
 };
 
-use log::{debug, info};
+use log::info;
 
 #[derive(Clone, Copy)]
 pub struct TimesHelper;
@@ -61,6 +61,30 @@ impl HelperDef for ExpandHelper {
         })?;
 
         out.write(&result)?;
+
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct ConcatHelper;
+
+impl HelperDef for ConcatHelper {
+    fn call<'reg: 'rc, 'rc>(
+        &self,
+        h: &Helper<'reg, 'rc>,
+        _: &'reg Handlebars,
+        _: &'rc Context,
+        _: &mut RenderContext<'reg>,
+        out: &mut dyn Output,
+    ) -> HelperResult {
+        let s: String = h
+            .params()
+            .iter()
+            .map(|s| s.value().as_str().unwrap_or_default())
+            .collect();
+
+        out.write(&s)?;
 
         Ok(())
     }

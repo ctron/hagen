@@ -4,8 +4,6 @@ use handlebars::{
 };
 use url::Url;
 
-use log::info;
-
 fn full_url<'reg: 'rc, 'rc>(
     h: &Helper<'reg, 'rc>,
     ctx: &'rc Context,
