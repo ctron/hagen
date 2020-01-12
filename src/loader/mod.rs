@@ -40,15 +40,9 @@ impl Metadata {
         P2: AsRef<Path> + Debug,
         S: Into<String>,
     {
-        println!("X0: {:?}", path);
-
         let path = path.as_ref();
-        println!("X0: {:?}", path.parent());
         let parent = path_to_string(path.parent());
         let root = path_to_string(Some(root.as_ref()));
-
-        println!("X1: {:?}", parent);
-        println!("X2: {:?}", root);
 
         let parent = if parent.starts_with(&root) {
             let len = root.len();
