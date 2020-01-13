@@ -22,8 +22,15 @@ use crate::helper::markdown::MarkdownifyHelper;
 
 use crate::copy;
 use crate::helper::time::TimeHelper;
-use crate::helper::url::{AbsoluteUrlHelper, RelativeUrlHelper};
+use crate::helper::url::{AbsoluteUrlHelper, ActiveHelper, RelativeUrlHelper};
 use relative_path::RelativePath;
+
+use lazy_static::lazy_static;
+use regex::Regex;
+
+lazy_static! {
+    static ref RE: Regex = Regex::new(r"/{2,}").unwrap();
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -94,6 +101,7 @@ impl Generator<'_> {
 
         handlebars.register_helper("absolute_url", Box::new(AbsoluteUrlHelper));
         handlebars.register_helper("relative_url", Box::new(RelativeUrlHelper));
+        handlebars.register_helper("active", Box::new(ActiveHelper));
 
         handlebars.register_helper("markdownify", Box::new(MarkdownifyHelper));
 
@@ -236,6 +244,7 @@ impl Generator<'_> {
         let path = self
             .handlebars
             .render_template(&rule.output_pattern, context)?;
+        let path = normalize_path(path);
         let template = self.handlebars.render_template(&rule.template, context)?;
         let target = RelativePath::new(&path).to_path(self.output());
 
@@ -284,5 +293,45 @@ impl Generator<'_> {
         fs::create_dir_all(p)?;
 
         Ok(())
+    }
+}
+
+fn normalize_path<S: AsRef<str>>(path: S) -> String {
+    let s = path.as_ref().replace('\\', "/");
+    RE.replace_all(&s, "/").into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_1() {
+        assert_eq!(normalize_path(""), "");
+    }
+
+    #[test]
+    fn test_backslash() {
+        assert_eq!(normalize_path("\\foo/bar/baz"), "/foo/bar/baz");
+    }
+
+    #[test]
+    fn test_double() {
+        assert_eq!(normalize_path("//foo/bar/baz"), "/foo/bar/baz");
+    }
+
+    #[test]
+    fn test_double_2() {
+        assert_eq!(normalize_path("//foo////bar/baz"), "/foo/bar/baz");
+    }
+
+    #[test]
+    fn test_double_back() {
+        assert_eq!(normalize_path("\\\\foo/bar/baz"), "/foo/bar/baz");
+    }
+
+    #[test]
+    fn test_double_back_2() {
+        assert_eq!(normalize_path("\\\\foo//bar/baz"), "/foo/bar/baz");
     }
 }
