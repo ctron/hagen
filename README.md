@@ -72,5 +72,17 @@ Different contexts have different variables. All values are JSON based.
 <dt><code>context</code>
 <dd>The content of the point selected from the content tree.</dd>
 
+<dt><code>output</code></dt>
+<dd>The output information.
+
+<dl>
+<dt><code>path</code></dt>
+<dd>The path of the output page.</dd>
+<dt><code>site_url</code></dt>
+<dd>The base site URL.</dd>
+</dl>
+
+</dd>
+
 </dl>
 
