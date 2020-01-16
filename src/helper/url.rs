@@ -5,7 +5,7 @@ use handlebars::{
 };
 use url::Url;
 
-use log::info;
+use log::debug;
 
 fn full_url_from(url: &str, ctx: &Context) -> Result<url::Url, RenderError> {
     let output = generator::Output::from(ctx)?;
@@ -140,7 +140,7 @@ impl HelperDef for ActiveHelper {
         let check_url = full_url_from(&url, ctx)?;
         let page_url = full_url_from("", ctx)?;
 
-        info!("check: {} - page: {}", check_url, page_url);
+        debug!("check: {} - page: {}", check_url, page_url);
 
         if check_url == page_url {
             if let Some(t) = h.template() {
