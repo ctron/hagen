@@ -20,14 +20,7 @@ impl HelperDef for MarkdownifyHelper {
             .ok_or(RenderError::new("Missing content for markdownify"))?;
 
         if let Some(markdown_input) = markdown_input.value().as_str() {
-            let mut options = Options::empty();
-            options.insert(Options::ENABLE_STRIKETHROUGH);
-            options.insert(Options::ENABLE_TABLES);
-            let parser = Parser::new_ext(markdown_input, options);
-
-            let mut html_output = String::new();
-            html::push_html(&mut html_output, parser);
-
+            let html_output = render(markdown_input)?;
             out.write(&html_output)?;
 
             Ok(())
@@ -35,4 +28,14 @@ impl HelperDef for MarkdownifyHelper {
             Err(RenderError::new("Require string data for markdownify"))
         }
     }
+}
+
+fn render<S: AsRef<str>>(markdown_input: S) -> Result<String, RenderError> {
+    let options = Options::all();
+
+    let parser = Parser::new_ext(markdown_input.as_ref(), options);
+
+    let mut html_output = String::new();
+    html::push_html(&mut html_output, parser);
+    return Ok(html_output);
 }
