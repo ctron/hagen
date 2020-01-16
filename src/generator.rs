@@ -25,6 +25,7 @@ use crate::helper::time::TimeHelper;
 use crate::helper::url::{AbsoluteUrlHelper, ActiveHelper, RelativeUrlHelper};
 use relative_path::RelativePath;
 
+use crate::helper::sort::SortedHelper;
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -98,6 +99,8 @@ impl Generator<'_> {
         handlebars.register_helper("times", Box::new(TimesHelper));
         handlebars.register_helper("expand", Box::new(ExpandHelper));
         handlebars.register_helper("concat", Box::new(ConcatHelper));
+
+        handlebars.register_helper("sorted", Box::new(SortedHelper));
 
         handlebars.register_helper("absolute_url", Box::new(AbsoluteUrlHelper));
         handlebars.register_helper("relative_url", Box::new(RelativeUrlHelper));
