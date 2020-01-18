@@ -9,7 +9,6 @@ use log::debug;
 
 use handlebars::to_json;
 use serde_json::value::Value as Json;
-use std::collections::BTreeMap;
 
 pub(crate) fn copy_on_push_vec<T>(input: &[T], el: T) -> Vec<T>
 where
