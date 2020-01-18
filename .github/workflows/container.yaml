@@ -40,7 +40,10 @@ jobs:
           path: target/release/hagen
 
       - name: Build the container image
-        run: docker build . --file .github/workflows/Dockerfile --tag docker.pkg.github.com/ctron/hagen/hagen:latest
+        run: docker build . --file .github/workflows/Dockerfile --tag docker.pkg.github.com/${{ github.repository }}/hagen:latest
+
+      - name: Login to container repository
+        run: docker login -u ctron -p {{ secret.GITHUB_TOKEN }} docker.pkg.github.com
 
       - name: Push the container image
-        run: docker push docker.pkg.github.com/ctron/hagen/hagen:latest
+        run: docker push docker.pkg.github.com/${{ github.repository }}/hagen:latest
