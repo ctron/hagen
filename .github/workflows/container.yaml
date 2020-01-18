@@ -33,13 +33,14 @@ jobs:
       - name: Build
         run: cargo build --release
 
-      - uses: actions/upload-artifact@v1
+      - name: Store artifact
+        uses: actions/upload-artifact@v1
         with:
           name: binary
           path: target/release/hagen
 
-      - name: Build the Docker image
+      - name: Build the container image
         run: docker build . --file .github/workflows/Dockerfile --tag docker.pkg.github.com/ctron/hagen/hagen:latest
 
-      - name: Push the Docker image
+      - name: Push the container image
         run: docker push docker.pkg.github.com/ctron/hagen/hagen:latest
