@@ -108,7 +108,7 @@ impl Generator<'_> {
 
         handlebars.register_helper("markdownify", Box::new(MarkdownifyHelper));
 
-        handlebars.register_helper("time", Box::new(TimeHelper));
+        handlebars.register_helper("timestamp", Box::new(TimeHelper));
 
         // create generator
 
