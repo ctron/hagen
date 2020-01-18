@@ -33,29 +33,6 @@ fn full_url_from(url: &str, ctx: &Context) -> Result<url::Url, RenderError> {
     Ok(result)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::generator::Output;
-    use serde_json::Map;
-    use std::str::FromStr;
-
-    #[test]
-    fn test_1() {
-        let o = Output {
-            site_url: "http://localhost:8080/".into(),
-            path: "index.html".into(),
-        };
-        let mut m = Map::new();
-        m.insert("output".into(), serde_json::to_value(o).expect(""));
-        let ctx = Context::wraps(m).expect("");
-        assert_eq!(
-            full_url_from("", &ctx).expect(""),
-            Url::from_str("http://localhost:8080/").expect("")
-        );
-    }
-}
-
 fn full_url<'reg: 'rc, 'rc>(
     h: &Helper<'reg, 'rc>,
     ctx: &'rc Context,
@@ -155,5 +132,57 @@ impl HelperDef for ActiveHelper {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::generator::Output;
+    use serde_json::Map;
+    use std::str::FromStr;
+
+    fn test_full_url(site_url: &str, path: &str, url: &str, expected: &str) {
+        let o = Output {
+            site_url: site_url.into(),
+            path: path.into(),
+        };
+        let mut m = Map::new();
+        m.insert("output".into(), serde_json::to_value(o).expect(""));
+        let ctx = Context::wraps(m).expect("");
+        assert_eq!(
+            full_url_from(url, &ctx).expect(""),
+            Url::from_str(expected).expect("")
+        );
+    }
+
+    #[test]
+    fn test_1() {
+        test_full_url(
+            "http://localhost:8080/",
+            "index.html",
+            "",
+            "http://localhost:8080/index.html",
+        );
+    }
+
+    #[test]
+    fn test_2() {
+        test_full_url(
+            "http://localhost:8080/site/",
+            "index.html",
+            "",
+            "http://localhost:8080/site/index.html",
+        );
+    }
+
+    #[test]
+    fn test_3() {
+        test_full_url(
+            "http://localhost:8080/site/",
+            "index.html",
+            "/",
+            "http://localhost:8080/site/",
+        );
     }
 }
