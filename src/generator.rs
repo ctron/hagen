@@ -7,7 +7,7 @@ use log::{debug, info};
 
 use crate::error::GeneratorError;
 use crate::loader::directory::DirectoryLoader;
-use crate::loader::{Content, Loader};
+use crate::loader::Loader;
 use crate::rules::{Asset, Render, Rule};
 
 use serde::{Deserialize, Serialize};
@@ -73,7 +73,6 @@ pub struct Generator<'a> {
 
     root: PathBuf,
     handlebars: Handlebars<'a>,
-    content: Option<Content>,
 
     full_content: Value,
     compact_content: Value,
@@ -116,7 +115,6 @@ impl Generator<'_> {
             site_url: site_url.into(),
             root: root.as_ref().to_path_buf(),
             handlebars,
-            content: Default::default(),
             full_content: Default::default(),
             compact_content: Default::default(),
         }
