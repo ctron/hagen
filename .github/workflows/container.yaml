@@ -13,7 +13,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v1
+
       - name: Build
         run: cargo build --release
+
+      - uses: actions/upload-artifact@v1
+        with:
+          name: binary
+          path: target/release/hagen
+
       - name: Build the Docker image
-        run: docker build . --file .github/workflows/Dockerfile --tag hagen:latest
+        run: docker build . --file .github/workflows/Dockerfile --tag docker.pkg.github.com/ctron/hagen/hagen:latest
+
+      - name: Push the Docker image
+        run: docker push docker.pkg.github.com/ctron/hagen/hagen:latest
