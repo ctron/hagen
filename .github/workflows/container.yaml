@@ -1,0 +1,19 @@
+name: Container Image CI
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: Build
+        run: cargo build --release
+      - name: Build the Docker image
+        run: docker build . --file .github/workflows/Dockerfile --tag hagen:latest
