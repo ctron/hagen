@@ -1,5 +1,5 @@
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+use std::{env, fs};
 
 use handlebars::{Context, Handlebars};
 
@@ -26,6 +26,7 @@ use crate::helper::url::{AbsoluteUrlHelper, ActiveHelper, RelativeUrlHelper};
 use relative_path::RelativePath;
 
 use crate::helper::sort::SortedHelper;
+use clap::Clap;
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -68,8 +69,22 @@ impl Output {
     }
 }
 
+#[derive(Clone, Clap)]
+#[clap(version = "0.1.0", author = "Jens Reimann")]
+pub struct Options {
+    /// Override the basename of the site
+    #[clap(short = "b", long = "base")]
+    basename: Option<String>,
+
+    /// The root of the site. Must contain the file "render.yaml" and the "content" directory.
+    #[clap(short = "r", long = "root")]
+    root: Option<String>,
+}
+
 pub struct Generator<'a> {
-    site_url: String,
+    options: Options,
+
+    config: Option<Render>,
 
     root: PathBuf,
     handlebars: Handlebars<'a>,
@@ -83,11 +98,7 @@ impl Generator<'_> {
         self.root.join("output")
     }
 
-    pub fn new<P, S>(root: P, site_url: S) -> Self
-    where
-        P: AsRef<Path>,
-        S: Into<String>,
-    {
+    pub fn new(options: Options) -> Self {
         // create instance
 
         let mut handlebars = Handlebars::new();
@@ -109,12 +120,21 @@ impl Generator<'_> {
 
         handlebars.register_helper("timestamp", Box::new(TimeHelper));
 
+        // eval root
+
+        let root = match options.root {
+            Some(ref x) => PathBuf::from(x),
+            None => env::current_dir().expect("Failed to get current directory"),
+        };
+
         // create generator
 
         Generator {
-            site_url: site_url.into(),
-            root: root.as_ref().to_path_buf(),
+            options,
+            root,
             handlebars,
+
+            config: Default::default(),
             full_content: Default::default(),
             compact_content: Default::default(),
         }
@@ -132,13 +152,19 @@ impl Generator<'_> {
         // load data
         self.load_content()?;
 
-        // load rules
+        // load config
+        self.load_config()?;
+
+        // build
+        self.build()?;
+
+        // done
+        Ok(())
+    }
+
+    fn load_config(&mut self) -> Result<()> {
         info!("Loading render rules");
-        let render = Render::load_from(self.root.join("render.yaml"))?;
-
-        self.build(&render)?;
-
-        // render pages
+        self.config = Some(Render::load_from(self.root.join("render.yaml"))?);
 
         Ok(())
     }
@@ -185,16 +211,21 @@ impl Generator<'_> {
         }
     }
 
-    fn build(&self, render: &Render) -> Result<()> {
+    fn build(&self) -> Result<()> {
+        let config = self
+            .config
+            .as_ref()
+            .ok_or(GeneratorError::Error("Missing site configuration".into()))?;
+
         // render all rules
         info!("Rendering content");
-        for rule in &render.rules {
-            self.render_rule(&rule)?;
+        for rule in &config.rules {
+            self.render_rule(&config, &rule)?;
         }
 
         // process assets
         info!("Processing assets");
-        for a in &render.assets {
+        for a in &config.assets {
             self.process_asset(a)?;
         }
 
@@ -220,7 +251,7 @@ impl Generator<'_> {
         Ok(())
     }
 
-    fn render_rule(&self, rule: &Rule) -> Result<()> {
+    fn render_rule(&self, config: &Render, rule: &Rule) -> Result<()> {
         info!(
             "Render rule: {:?}:{:?} -> {} -> {}",
             rule.selector_type, rule.selector, rule.template, rule.output_pattern
@@ -233,14 +264,14 @@ impl Generator<'_> {
         // process selected entries
         for entry in result {
             info!("Processing entry: {}", entry);
-            self.process_render(rule, entry)?;
+            self.process_render(config, rule, entry)?;
         }
 
         // done
         Ok(())
     }
 
-    fn process_render(&self, rule: &Rule, context: &Value) -> Result<()> {
+    fn process_render(&self, config: &Render, rule: &Rule, context: &Value) -> Result<()> {
         // eval
         let path = self
             .handlebars
@@ -253,9 +284,15 @@ impl Generator<'_> {
             fs::create_dir_all(parent)?;
         }
 
+        // site url
+
+        let site_url = (&self.options.basename)
+            .as_ref()
+            .unwrap_or(&config.site.basename);
+
         // page data
 
-        let output = Output::new(&self.site_url, &path);
+        let output = Output::new(site_url, &path);
         let output = serde_json::to_value(&output)?;
 
         // render

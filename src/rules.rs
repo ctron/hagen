@@ -28,8 +28,14 @@ pub trait RuleProcessor {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Render {
+    pub site: Site,
     pub rules: Vec<Rule>,
     pub assets: Vec<Asset>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Site {
+    pub basename: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

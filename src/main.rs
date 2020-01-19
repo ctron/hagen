@@ -5,13 +5,9 @@ mod helper;
 mod loader;
 mod rules;
 
-use std::env;
-use std::path::PathBuf;
-
 use generator::Generator;
 
-use log::{debug, info};
-
+use crate::generator::Options;
 use env_logger::Env;
 use failure::{Error, Fail};
 
@@ -26,19 +22,9 @@ fn hag_exit(err: failure::Error) -> ! {
 }
 
 fn hag_run() -> Result<()> {
-    let args: Vec<String> = env::args().collect();
-    debug!("{:?}", args);
+    let opts = Options::parse();
 
-    let root = args.get(1);
-
-    let root = match root {
-        Some(x) => PathBuf::from(x),
-        None => env::current_dir().expect("Failed to get current directory"),
-    };
-
-    info!("Root path: {:?}", root);
-
-    let mut generator = Generator::new(root, "http://localhost:8080");
+    let mut generator = Generator::new(opts);
     Ok(generator.run()?)
 }
 
