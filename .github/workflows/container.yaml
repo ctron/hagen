@@ -40,10 +40,20 @@ jobs:
           path: target/release/hagen
 
       - name: Build the container image
-        run: docker build . --file .github/workflows/Dockerfile --tag docker.pkg.github.com/${{ github.repository }}/hagen:latest
+        run: |
+          docker build . --file .github/workflows/Dockerfile \
+            --tag docker.pkg.github.com/${{ github.repository }}/hagen:latest \
+            --tag quay.io/ctron/hagen:latest
 
-      - name: Login to container repository
+      - name: Login to quay.io
+        run: docker login -u "${{ secret.QUAY_IO_USERNAME }}" -p "${{ secret.QUAY_IO_PASSWORD }}" quay.io
+
+      - name: Push to quay.io
+        run: docker push quay.io/ctron/hagen:latest
+
+      # Unfortunately the GitHub docker registry requires a sign-in even for public repositories
+      - name: Login to github container repository
         run: docker login -u ctron -p ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com
 
-      - name: Push the container image
+      - name: Push to github container repository
         run: docker push docker.pkg.github.com/${{ github.repository }}/hagen:latest
