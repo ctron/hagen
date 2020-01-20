@@ -79,6 +79,10 @@ pub struct Options {
     /// The root of the site. Must contain the file "render.yaml" and the "content" directory.
     #[clap(short = "r", long = "root")]
     root: Option<String>,
+
+    /// Dump the content files as well.
+    #[clap(short = "D", long = "dump")]
+    dump: bool,
 }
 
 pub struct Generator<'a> {
@@ -181,11 +185,14 @@ impl Generator<'_> {
         self.full_content = content.to_value()?;
         self.compact_content = Generator::compact_content(&self.full_content).unwrap_or_default();
 
-        // dump content
-        let writer = File::create(self.output().join("content.yaml"))?;
-        serde_yaml::to_writer(writer, &self.full_content)?;
-        let writer = File::create(self.output().join("compact.yaml"))?;
-        serde_yaml::to_writer(writer, &self.compact_content)?;
+        if self.options.dump {
+            // dump content
+            info!("Dumping content");
+            let writer = File::create(self.output().join("content.yaml"))?;
+            serde_yaml::to_writer(writer, &self.full_content)?;
+            let writer = File::create(self.output().join("compact.yaml"))?;
+            serde_yaml::to_writer(writer, &self.compact_content)?;
+        }
 
         // done
         Ok(())
