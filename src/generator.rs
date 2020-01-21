@@ -355,8 +355,10 @@ impl Generator<'_> {
         info!("  Target: {:?}", target);
         let writer = File::create(target)?;
 
+        let context = Generator::build_context(&rule, &context)?;
+
         self.handlebars
-            .render_to_write(&template, &self.data(&output, context), writer)?;
+            .render_to_write(&template, &self.data(output, context), writer)?;
 
         // call processors
         processors.file_created(&relative_target)?;
@@ -365,14 +367,52 @@ impl Generator<'_> {
         Ok(())
     }
 
-    fn data(&self, output: &Value, context: &Value) -> Value {
+    /// Build the render content context object from the rules context mappings
+    fn build_context(rule: &Rule, context: &Value) -> Result<Value> {
+        if rule.context.is_empty() {
+            return Ok(context.clone());
+        }
+
+        let mut result = Map::new();
+
+        for (k, v) in &rule.context {
+            match v {
+                Value::String(path) => {
+                    let obj = jsonpath_lib::select(context, &path)?;
+                    let obj = obj.as_slice();
+                    let value = match obj {
+                        [] => None,
+                        [x] => Some((*x).clone()),
+                        obj => Some(Value::Array(obj.iter().cloned().cloned().collect())),
+                    };
+                    info!("Mapped context - name: {:?} = {:?}", k, value);
+                    if let Some(value) = value {
+                        result.insert(k.into(), value);
+                    }
+                }
+                _ => {
+                    return Err(GeneratorError::Error(
+                        "Context value must be a string/JSON path".into(),
+                    ))
+                }
+            }
+        }
+
+        Ok(Value::Object(result))
+    }
+
+    fn data(&self, output: Value, context: Value) -> Value {
         let mut data = serde_json::value::Map::new();
 
-        data.insert("output".into(), output.clone());
-        data.insert("context".into(), context.clone());
+        // add the output context
+        data.insert("output".into(), output);
+        data.insert("context".into(), context);
+        // add the full content tree
         data.insert("full".into(), self.full_content.clone());
+        // add the compact content tree
         data.insert("compact".into(), self.compact_content.clone());
 
+        // convert to json object
         serde_json::value::Value::Object(data)
     }
 

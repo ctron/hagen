@@ -20,6 +20,8 @@ pub struct Rule {
     pub selector: Option<String>,
     pub template: String,
     pub output_pattern: String,
+    #[serde(default)]
+    pub context: Map<String, Value>,
 }
 
 pub trait RuleProcessor {
