@@ -358,10 +358,10 @@ impl Generator<'_> {
         let context = Generator::build_context(&rule, &context)?;
 
         self.handlebars
-            .render_to_write(&template, &self.data(output, context), writer)?;
+            .render_to_write(&template, &self.data(output, context.clone()), writer)?;
 
         // call processors
-        processors.file_created(&relative_target)?;
+        processors.file_created(&relative_target, &context)?;
 
         // done
         Ok(())

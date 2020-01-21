@@ -1,6 +1,7 @@
 use crate::generator::GeneratorContext;
 use failure::Error;
 use relative_path::RelativePath;
+use serde_json::Value;
 use std::path::Path;
 
 pub mod sitemap;
@@ -12,7 +13,7 @@ pub trait Processor {
 }
 
 pub trait ProcessorContext {
-    fn file_created(&mut self, path: &RelativePath) -> Result<()>;
+    fn file_created(&mut self, path: &RelativePath, context: &Value) -> Result<()>;
     fn complete(&mut self) -> Result<()>;
 }
 
@@ -32,9 +33,9 @@ impl<'a> ProcessorSession<'a> {
         })
     }
 
-    pub fn file_created(&mut self, path: &RelativePath) -> Result<()> {
+    pub fn file_created(&mut self, path: &RelativePath, context: &Value) -> Result<()> {
         for p in &mut self.processors {
-            (*p).file_created(path)?;
+            (*p).file_created(path, context)?;
         }
         Ok(())
     }

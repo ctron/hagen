@@ -1,7 +1,6 @@
 use crate::processor::{Processor, ProcessorContext};
 
 use failure::Error;
-use failure::_core::str::FromStr;
 
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::Writer;
@@ -14,7 +13,8 @@ use crate::generator::GeneratorContext;
 use chrono::{DateTime, Utc};
 use strum_macros::{AsRefStr, AsStaticStr};
 
-use chrono::TimeZone;
+use crate::error::GeneratorError;
+use serde_json::Value;
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -113,10 +113,30 @@ impl<'a, W: Write> SitemapContext<'a, W> {
 }
 
 impl<'a, W: Write> ProcessorContext for SitemapContext<'a, W> {
-    fn file_created(&mut self, path: &RelativePath) -> Result<()> {
+    fn file_created(&mut self, path: &RelativePath, context: &Value) -> Result<()> {
         let url = crate::helper::url::full_url_for(self.context.basename, path.as_str())?;
 
-        self.write_entry(&url, None, None, None)?;
+        let published =
+            jsonpath_lib::select(context, "$.context.page.frontMatter.timestamp.published")
+                .map_err(|e| GeneratorError::JsonPath(e.to_string()))?;
+        let published = published.as_slice();
+        let updated = jsonpath_lib::select(context, "$.context.page.frontMatter.timestamp.updated")
+            .map_err(|e| GeneratorError::JsonPath(e.to_string()))?;
+        let updated = updated.as_slice();
+
+        // FIXME: continue here
+
+        let last_mod = match (published, updated) {
+            (_, [t]) => Some(t),
+            ([t], []) => Some(t),
+            _ => None,
+        }
+        .and_then(|t| t.as_str())
+        .map(|t| DateTime::parse_from_rfc3339(t))
+        .transpose()?
+        .map(|t| t.with_timezone(&Utc));
+
+        self.write_entry(&url, last_mod, None, None)?;
 
         Ok(())
     }
