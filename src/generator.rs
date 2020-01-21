@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{env, fs};
 
 use handlebars::{Context, Handlebars};
@@ -25,10 +25,15 @@ use crate::helper::time::TimeHelper;
 use crate::helper::url::{AbsoluteUrlHelper, ActiveHelper, RelativeUrlHelper};
 use relative_path::RelativePath;
 
+use crate::processor::{Processor, ProcessorSession};
+
 use crate::helper::sort::SortedHelper;
+use crate::processor::sitemap::SitemapProcessor;
 use clap::Clap;
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::str::FromStr;
+use url::Url;
 
 lazy_static! {
     static ref RE: Regex = Regex::new(r"/{2,}").unwrap();
@@ -85,14 +90,21 @@ pub struct Options {
     dump: bool,
 }
 
+pub struct GeneratorContext<'a> {
+    pub root: &'a Path,
+    pub output: &'a Path,
+    pub basename: &'a Url,
+}
+
 pub struct Generator<'a> {
     options: Options,
-
-    config: Option<Render>,
-
     root: PathBuf,
+
     handlebars: Handlebars<'a>,
 
+    processors: Vec<Box<dyn Processor>>,
+
+    config: Option<Render>,
     full_content: Value,
     compact_content: Value,
 }
@@ -124,6 +136,11 @@ impl Generator<'_> {
 
         handlebars.register_helper("timestamp", Box::new(TimeHelper));
 
+        // register processors
+
+        let mut processors: Vec<Box<dyn Processor>> = Vec::new();
+        processors.push(Box::new(SitemapProcessor::new()));
+
         // eval root
 
         let root = match options.root {
@@ -135,8 +152,9 @@ impl Generator<'_> {
 
         Generator {
             options,
-            root,
             handlebars,
+            root,
+            processors,
 
             config: Default::default(),
             full_content: Default::default(),
@@ -224,10 +242,30 @@ impl Generator<'_> {
             .as_ref()
             .ok_or(GeneratorError::Error("Missing site configuration".into()))?;
 
+        let mut basename = (&self.options.basename)
+            .as_ref()
+            .unwrap_or(&config.site.basename)
+            .to_owned();
+
+        if !basename.ends_with('/') {
+            basename.push('/');
+        }
+
+        let basename = Url::from_str(&basename)?;
+
+        // context
+        let context = GeneratorContext {
+            basename: &basename,
+            root: &self.root,
+            output: &self.output(),
+        };
+
+        let mut processors = ProcessorSession::new(&self.processors, &context)?;
+
         // render all rules
         info!("Rendering content");
         for rule in &config.rules {
-            self.render_rule(&config, &rule)?;
+            self.render_rule(&rule, &mut processors, &context)?;
         }
 
         // process assets
@@ -235,6 +273,8 @@ impl Generator<'_> {
         for a in &config.assets {
             self.process_asset(a)?;
         }
+
+        processors.complete()?;
 
         info!("Done");
         // done
@@ -258,7 +298,12 @@ impl Generator<'_> {
         Ok(())
     }
 
-    fn render_rule(&self, config: &Render, rule: &Rule) -> Result<()> {
+    fn render_rule(
+        &self,
+        rule: &Rule,
+        processors: &mut ProcessorSession,
+        context: &GeneratorContext,
+    ) -> Result<()> {
         info!(
             "Render rule: {:?}:{:?} -> {} -> {}",
             rule.selector_type, rule.selector, rule.template, rule.output_pattern
@@ -271,35 +316,37 @@ impl Generator<'_> {
         // process selected entries
         for entry in result {
             info!("Processing entry: {}", entry);
-            self.process_render(config, rule, entry)?;
+            self.process_render(rule, entry, processors, context)?;
         }
 
         // done
         Ok(())
     }
 
-    fn process_render(&self, config: &Render, rule: &Rule, context: &Value) -> Result<()> {
+    fn process_render(
+        &self,
+        rule: &Rule,
+        context: &Value,
+        processors: &mut ProcessorSession,
+        generator_context: &GeneratorContext,
+    ) -> Result<()> {
         // eval
         let path = self
             .handlebars
             .render_template(&rule.output_pattern, context)?;
         let path = normalize_path(path);
         let template = self.handlebars.render_template(&rule.template, context)?;
-        let target = RelativePath::new(&path).to_path(self.output());
+
+        let relative_target = RelativePath::new(&path);
+        let target = relative_target.to_path(self.output());
 
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent)?;
         }
 
-        // site url
-
-        let site_url = (&self.options.basename)
-            .as_ref()
-            .unwrap_or(&config.site.basename);
-
         // page data
 
-        let output = Output::new(site_url, &path);
+        let output = Output::new(generator_context.basename.as_str(), &path);
         let output = serde_json::to_value(&output)?;
 
         // render
@@ -310,6 +357,9 @@ impl Generator<'_> {
 
         self.handlebars
             .render_to_write(&template, &self.data(&output, context), writer)?;
+
+        // call processors
+        processors.file_created(&relative_target)?;
 
         // done
         Ok(())

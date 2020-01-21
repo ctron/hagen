@@ -5,9 +5,23 @@ use handlebars::{
 };
 use url::Url;
 
+use failure::Error;
 use log::debug;
 
-fn full_url_from(url: &str, ctx: &Context) -> Result<url::Url, RenderError> {
+pub fn full_url_for<S: AsRef<str>>(basename: &Url, path: S) -> Result<Url, Error> {
+    let path = path.as_ref();
+
+    // if we have an absolute URL, then absolute is still relative to the site base
+    let path = if path.starts_with('/') {
+        &path[1..]
+    } else {
+        path
+    };
+
+    Ok(basename.join(path)?)
+}
+
+pub fn full_url_from(url: &str, ctx: &Context) -> Result<url::Url, RenderError> {
     let output = generator::Output::from(ctx)?;
 
     // start with the site base name

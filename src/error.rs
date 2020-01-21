@@ -1,6 +1,7 @@
 use failure::{Error, Fail};
 use handlebars::{RenderError, TemplateFileError};
 use jsonpath_lib::JsonPathError;
+use url::ParseError;
 
 #[derive(Debug, Fail)]
 pub enum GeneratorError {
@@ -64,6 +65,12 @@ impl From<handlebars::TemplateRenderError> for GeneratorError {
 
 impl From<handlebars::RenderError> for GeneratorError {
     fn from(err: handlebars::RenderError) -> Self {
+        GeneratorError::GenericError(err.into())
+    }
+}
+
+impl From<ParseError> for GeneratorError {
+    fn from(err: ParseError) -> Self {
         GeneratorError::GenericError(err.into())
     }
 }

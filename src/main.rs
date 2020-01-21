@@ -3,6 +3,7 @@ mod error;
 mod generator;
 mod helper;
 mod loader;
+mod processor;
 mod rules;
 
 use generator::Generator;

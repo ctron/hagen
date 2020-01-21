@@ -13,7 +13,7 @@ use crate::error::GeneratorError;
 
 type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Rule {
     pub selector_type: String,
@@ -26,19 +26,19 @@ pub trait RuleProcessor {
     fn query<'a>(&self, content: &'a Value) -> Result<Vec<&'a Value>>;
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Render {
     pub site: Site,
     pub rules: Vec<Rule>,
     pub assets: Vec<Asset>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Site {
     pub basename: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Asset {
     pub dir: String,
     pub to: Option<String>,
