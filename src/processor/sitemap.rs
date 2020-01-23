@@ -17,6 +17,8 @@ use strum_macros::{AsRefStr, AsStaticStr, EnumString};
 use crate::error::GeneratorError;
 use serde_json::Value;
 
+use log::debug;
+
 type Result<T> = std::result::Result<T, Error>;
 
 pub struct SitemapProcessor {
@@ -133,6 +135,8 @@ impl<'a, W: Write> SitemapContext<'a, W> {
     fn last_mod_from(&self, context: &Value) -> Result<Option<DateTime<Utc>>> {
         let published = value_by_path(context, &self.published_path)?;
         let updated = value_by_path(context, &self.updated_path)?;
+
+        debug!("published: {:?}, updated: {:?}", published, updated);
 
         let last_mod = match (published.as_slice(), updated.as_slice()) {
             (_, [t]) => Some(t),

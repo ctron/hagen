@@ -311,7 +311,7 @@ impl Generator<'_> {
         context: &GeneratorContext,
     ) -> Result<()> {
         info!(
-            "Render rule: {:?}:{:?} -> {} -> {}",
+            "Render rule: {:?}:{:?} -> {:?} -> {}",
             rule.selector_type, rule.selector, rule.template, rule.output_pattern
         );
 
@@ -321,7 +321,7 @@ impl Generator<'_> {
 
         // process selected entries
         for entry in result {
-            info!("Processing entry: {}", entry);
+            debug!("Processing entry: {}", entry);
             self.process_render(rule, entry, processors, context)?;
         }
 
@@ -341,7 +341,11 @@ impl Generator<'_> {
             .handlebars
             .render_template(&rule.output_pattern, context)?;
         let path = normalize_path(path);
-        let template = self.handlebars.render_template(&rule.template, context)?;
+        let template = rule
+            .template
+            .as_ref()
+            .map(|t| self.handlebars.render_template(&t, context))
+            .transpose()?;
 
         let relative_target = RelativePath::new(&path);
         let target = relative_target.to_path(self.output());
@@ -356,18 +360,28 @@ impl Generator<'_> {
         let output = serde_json::to_value(&output)?;
 
         // render
-        info!("Render '{}' with '{}'", path, template);
+        info!("Render '{}' with '{:?}'", path, template);
 
         info!("  Target: {:?}", target);
         let writer = File::create(target)?;
 
         let context = Generator::build_context(&rule, &context)?;
+        let data = &self.data(output, context.clone());
 
-        self.handlebars
-            .render_to_write(&template, &self.data(output, context.clone()), writer)?;
+        match template {
+            Some(ref t) => self.handlebars.render_to_write(t, data, writer)?,
+            None => {
+                let content = match &context.as_object().and_then(|s| s.get("content")) {
+                    Some(Value::String(c)) => Ok(c),
+                    _ => Err(GeneratorError::Error("Rule is missing 'template' on rule and '.content' value in context. Either must be set.".into())),
+                }?;
+                self.handlebars
+                    .render_template_to_write(content, data, writer)?;
+            }
+        }
 
         // call processors
-        processors.file_created(&relative_target, &context)?;
+        processors.file_created(&relative_target, data)?;
 
         // done
         Ok(())
@@ -391,7 +405,7 @@ impl Generator<'_> {
                         [x] => Some((*x).clone()),
                         obj => Some(Value::Array(obj.iter().cloned().cloned().collect())),
                     };
-                    info!("Mapped context - name: {:?} = {:?}", k, value);
+                    debug!("Mapped context - name: {:?} = {:?}", k, value);
                     if let Some(value) = value {
                         result.insert(k.into(), value);
                     }

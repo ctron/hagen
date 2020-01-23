@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use crate::loader::directory::DirectoryLoader;
-use crate::loader::html::HtmlLoader;
 use crate::loader::markdown::MarkdownLoader;
+use crate::loader::plain::PlainLoader;
 use crate::loader::yaml::YAMLLoader;
 
 use serde::{Deserialize, Serialize};
@@ -16,8 +16,8 @@ type Result<T> = std::result::Result<T, Error>;
 
 pub mod directory;
 pub mod front_matter;
-pub mod html;
 pub mod markdown;
+pub mod plain;
 pub mod yaml;
 
 pub trait Loader {
@@ -152,17 +152,14 @@ where
         )));
     }
 
+    let root = root.as_ref().to_path_buf();
     match path.extension() {
         None => None,
         Some(str) => match str.to_str() {
-            Some("yaml") | Some("yml") => {
-                Some(Box::new(YAMLLoader::new(root.as_ref().to_path_buf(), path)))
-            }
-            Some("md") => Some(Box::new(MarkdownLoader::new(
-                root.as_ref().to_path_buf(),
-                path,
-            ))),
-            Some("html") => Some(Box::new(HtmlLoader::new(root.as_ref().to_path_buf(), path))),
+            Some("yaml") | Some("yml") => Some(Box::new(YAMLLoader::new(root, path))),
+            Some("md") => Some(Box::new(MarkdownLoader::new(root, path))),
+            Some("html") => Some(Box::new(PlainLoader::new(root, path, "html", true))),
+            Some("txt") => Some(Box::new(PlainLoader::new(root, path, "txt", false))),
             _ => None,
         },
     }

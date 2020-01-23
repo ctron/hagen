@@ -18,7 +18,7 @@ type Result<T> = std::result::Result<T, Error>;
 pub struct Rule {
     pub selector_type: String,
     pub selector: Option<String>,
-    pub template: String,
+    pub template: Option<String>,
     pub output_pattern: String,
     #[serde(default)]
     pub context: Map<String, Value>,
@@ -64,6 +64,9 @@ impl Rule {
             "layout" => Ok(Box::new(LayoutProcessor {
                 layout: self.selector.clone(),
             })),
+            "type" => Ok(Box::new(TypeProcessor {
+                type_name: self.selector.clone(),
+            })),
             "jsonpath" => Ok(Box::new(JsonPathProcessor {
                 path: self
                     .selector
@@ -99,6 +102,50 @@ impl RuleProcessor for JsonPathProcessor {
             v.retain(|e| e.is_object());
             v
         })
+    }
+}
+
+pub struct TypeProcessor {
+    type_name: Option<String>,
+}
+
+impl TypeProcessor {
+    fn is_match(&self, item: &Map<String, Value>) -> bool {
+        if let Some(type_name) = item
+            .get("metadata")
+            .and_then(|v| v.as_object())
+            .and_then(|fm| fm.get("type"))
+            .and_then(|v| v.as_str())
+        {
+            if let Some(required_type_name) = &self.type_name {
+                required_type_name.eq(type_name)
+            } else {
+                true
+            }
+        } else {
+            false
+        }
+    }
+
+    fn find<'a>(&self, current: &'a Value, result: &mut Vec<&'a Value>) {
+        if let Some(o) = current.as_object() {
+            if self.is_match(o) {
+                result.push(current);
+            }
+            for (_, v) in o {
+                self.find(v, result);
+            }
+        }
+    }
+}
+
+impl RuleProcessor for TypeProcessor {
+    fn query<'a>(&self, content: &'a Value) -> Result<Vec<&'a Value>> {
+        let mut result = Vec::new();
+
+        self.find(content, &mut result);
+
+        Ok(result)
     }
 }
 
