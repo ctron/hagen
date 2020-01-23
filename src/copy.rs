@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use globset::{Glob, GlobSetBuilder};
-use log::{debug, info};
+use log::debug;
 use walkdir::WalkDir;
 
 type Result<T> = std::result::Result<T, Error>;
@@ -34,13 +34,13 @@ where
                     let target = to.join(relative);
 
                     if source.is_file() {
-                        info!("Copy file - to: {:?}", target);
+                        debug!("Copy file - to: {:?}", target);
                         if let Some(parent) = target.parent() {
                             fs::create_dir_all(parent)?;
                         }
                         fs::copy(source, target)?;
                     } else if source.is_dir() {
-                        info!("Create directory: {:?}", target);
+                        debug!("Create directory: {:?}", target);
                         fs::create_dir_all(target)?;
                     }
                 }
