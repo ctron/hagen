@@ -89,3 +89,25 @@ impl HelperDef for ConcatHelper {
         Ok(())
     }
 }
+
+#[derive(Clone, Copy)]
+pub struct DumpHelper;
+
+impl HelperDef for DumpHelper {
+    fn call<'reg: 'rc, 'rc>(
+        &self,
+        h: &Helper<'reg, 'rc>,
+        _: &'reg Handlebars,
+        _: &'rc Context,
+        _: &mut RenderContext<'reg>,
+        _: &mut dyn Output,
+    ) -> HelperResult {
+        for p in h.params() {
+            let path = p.path_root();
+            let value = p.value();
+            info!("'{:?}' => '{}'", path, serde_json::to_string(value)?);
+        }
+
+        Ok(())
+    }
+}

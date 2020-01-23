@@ -17,7 +17,7 @@ use std::fs::File;
 
 type Result<T> = std::result::Result<T, GeneratorError>;
 
-use crate::helper::basic::{ConcatHelper, ExpandHelper, TimesHelper};
+use crate::helper::basic::{ConcatHelper, DumpHelper, ExpandHelper, TimesHelper};
 use crate::helper::markdown::MarkdownifyHelper;
 
 use crate::copy;
@@ -81,7 +81,7 @@ pub struct Options {
     #[clap(short = "b", long = "base")]
     basename: Option<String>,
 
-    /// The root of the site. Must contain the file "render.yaml" and the "content" directory.
+    /// The root of the site. Must contain the file "hagen.yaml" and the "content" directory.
     #[clap(short = "r", long = "root")]
     root: Option<String>,
 
@@ -122,6 +122,8 @@ impl Generator<'_> {
 
         // register helpers
 
+        handlebars.register_helper("dump", Box::new(DumpHelper));
+
         handlebars.register_helper("times", Box::new(TimesHelper));
         handlebars.register_helper("expand", Box::new(ExpandHelper));
         handlebars.register_helper("concat", Box::new(ConcatHelper));
@@ -139,7 +141,10 @@ impl Generator<'_> {
         // register processors
 
         let mut processors: Vec<Box<dyn Processor>> = Vec::new();
-        processors.push(Box::new(SitemapProcessor::new()));
+        processors.push(Box::new(SitemapProcessor::new(
+            "$.context.page.frontMatter.timestamp.published",
+            "$.context.page.frontMatter.timestamp.updated",
+        )));
 
         // eval root
 
@@ -185,8 +190,9 @@ impl Generator<'_> {
     }
 
     fn load_config(&mut self) -> Result<()> {
-        info!("Loading render rules");
-        self.config = Some(Render::load_from(self.root.join("render.yaml"))?);
+        let path = self.root.join("hagen.yaml");
+        info!("Loading configuration: {:?}", path);
+        self.config = Some(Render::load_from(path)?);
 
         Ok(())
     }

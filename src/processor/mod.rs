@@ -2,7 +2,6 @@ use crate::generator::GeneratorContext;
 use failure::Error;
 use relative_path::RelativePath;
 use serde_json::Value;
-use std::path::Path;
 
 pub mod sitemap;
 

@@ -11,18 +11,29 @@ use url::Url;
 
 use crate::generator::GeneratorContext;
 use chrono::{DateTime, Utc};
-use strum_macros::{AsRefStr, AsStaticStr};
+use std::str::FromStr;
+use strum_macros::{AsRefStr, AsStaticStr, EnumString};
 
 use crate::error::GeneratorError;
 use serde_json::Value;
 
 type Result<T> = std::result::Result<T, Error>;
 
-pub struct SitemapProcessor {}
+pub struct SitemapProcessor {
+    published_path: String,
+    updated_path: String,
+}
 
 impl SitemapProcessor {
-    pub fn new() -> SitemapProcessor {
-        SitemapProcessor {}
+    pub fn new<S1, S2>(published_path: S1, updated_path: S2) -> SitemapProcessor
+    where
+        S1: Into<String>,
+        S2: Into<String>,
+    {
+        SitemapProcessor {
+            published_path: published_path.into(),
+            updated_path: updated_path.into(),
+        }
     }
 }
 
@@ -40,16 +51,24 @@ impl Processor for SitemapProcessor {
         ))?;
         writer.write(b"\n")?;
 
-        Ok(Box::new(SitemapContext::<'a> { writer, context }))
+        Ok(Box::new(SitemapContext::<'a> {
+            published_path: self.published_path.clone(),
+            updated_path: self.updated_path.clone(),
+            writer,
+            context,
+        }))
     }
 }
 
 pub struct SitemapContext<'a, W: Write> {
+    published_path: String,
+    updated_path: String,
+
     writer: Writer<W>,
     context: &'a GeneratorContext<'a>,
 }
 
-#[derive(AsRefStr, AsStaticStr)]
+#[derive(AsRefStr, AsStaticStr, EnumString)]
 #[strum(serialize_all = "snake_case")]
 pub enum ChangeFrequency {
     Always,
@@ -84,7 +103,7 @@ impl<'a, W: Write> SitemapContext<'a, W> {
         loc: &Url,
         last_mod: Option<DateTime<Utc>>,
         change_freq: Option<ChangeFrequency>,
-        priority: Option<f32>,
+        priority: Option<f64>,
     ) -> Result<()> {
         self.writer
             .write_event(Event::Start(BytesStart::borrowed_name(b"url")))?;
@@ -110,23 +129,12 @@ impl<'a, W: Write> SitemapContext<'a, W> {
         self.writer.write(b"\n")?;
         Ok(())
     }
-}
 
-impl<'a, W: Write> ProcessorContext for SitemapContext<'a, W> {
-    fn file_created(&mut self, path: &RelativePath, context: &Value) -> Result<()> {
-        let url = crate::helper::url::full_url_for(self.context.basename, path.as_str())?;
+    fn last_mod_from(&self, context: &Value) -> Result<Option<DateTime<Utc>>> {
+        let published = value_by_path(context, &self.published_path)?;
+        let updated = value_by_path(context, &self.updated_path)?;
 
-        let published =
-            jsonpath_lib::select(context, "$.context.page.frontMatter.timestamp.published")
-                .map_err(|e| GeneratorError::JsonPath(e.to_string()))?;
-        let published = published.as_slice();
-        let updated = jsonpath_lib::select(context, "$.context.page.frontMatter.timestamp.updated")
-            .map_err(|e| GeneratorError::JsonPath(e.to_string()))?;
-        let updated = updated.as_slice();
-
-        // FIXME: continue here
-
-        let last_mod = match (published, updated) {
+        let last_mod = match (published.as_slice(), updated.as_slice()) {
             (_, [t]) => Some(t),
             ([t], []) => Some(t),
             _ => None,
@@ -136,7 +144,41 @@ impl<'a, W: Write> ProcessorContext for SitemapContext<'a, W> {
         .transpose()?
         .map(|t| t.with_timezone(&Utc));
 
-        self.write_entry(&url, last_mod, None, None)?;
+        Ok(last_mod)
+    }
+}
+
+impl<'a, W: Write> ProcessorContext for SitemapContext<'a, W> {
+    fn file_created(&mut self, path: &RelativePath, context: &Value) -> Result<()> {
+        let url = crate::helper::url::full_url_for(self.context.basename, path.as_str())?;
+        let last_mod = self.last_mod_from(context)?;
+
+        // change freq
+
+        let change_freq = value_by_path(
+            context,
+            "$.context.page.frontMatter.sitemap.changeFrequency",
+        )?
+        .first()
+        .and_then(|s| s.as_str());
+
+        let change_freq = match change_freq {
+            Some(s) => Some(ChangeFrequency::from_str(s)?),
+            _ => None,
+        };
+
+        // priority
+
+        let priority = value_by_path(context, "$.context.page.frontMatter.sitemap.priority")?;
+
+        let priority = match priority.first() {
+            Some(s) => Some(s.as_f64().ok_or(GeneratorError::Error(
+                "'priority' must be a numeric value, or unset".into(),
+            ))?),
+            _ => None,
+        };
+
+        self.write_entry(&url, last_mod, change_freq, priority)?;
 
         Ok(())
     }
@@ -147,4 +189,11 @@ impl<'a, W: Write> ProcessorContext for SitemapContext<'a, W> {
 
         Ok(())
     }
+}
+
+fn value_by_path<'a>(context: &'a Value, path: &'a str) -> Result<Vec<&'a Value>> {
+    let result = jsonpath_lib::select(context, path.as_ref())
+        .map_err(|e| GeneratorError::JsonPath(e.to_string()))?;
+
+    Ok(result)
 }
