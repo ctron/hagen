@@ -1,4 +1,4 @@
-use crate::generator::GeneratorContext;
+use crate::generator::GeneratorConfig;
 use failure::Error;
 use relative_path::RelativePath;
 use serde_json::Value;
@@ -8,7 +8,7 @@ pub mod sitemap;
 type Result<T> = std::result::Result<T, Error>;
 
 pub trait Processor {
-    fn create<'a>(&self, context: &'a GeneratorContext) -> Result<Box<dyn ProcessorContext + 'a>>;
+    fn create<'a>(&self, config: &'a GeneratorConfig) -> Result<Box<dyn ProcessorContext + 'a>>;
 }
 
 pub trait ProcessorContext {
@@ -23,10 +23,10 @@ pub struct ProcessorSession<'a> {
 impl<'a> ProcessorSession<'a> {
     pub fn new(
         processors: &Vec<Box<dyn Processor>>,
-        context: &'a GeneratorContext,
+        config: &'a GeneratorConfig,
     ) -> Result<ProcessorSession<'a>> {
         let processors: Result<Vec<Box<dyn ProcessorContext + 'a>>> =
-            processors.into_iter().map(|p| p.create(context)).collect();
+            processors.into_iter().map(|p| p.create(config)).collect();
         Ok(ProcessorSession {
             processors: processors?,
         })

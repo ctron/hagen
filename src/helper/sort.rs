@@ -1,7 +1,7 @@
 use failure::_core::cmp::Ordering;
 use handlebars::{
-    BlockParams, Context, Handlebars, Helper, HelperDef, HelperResult, Output, RenderContext,
-    RenderError, Renderable,
+    BlockContext, BlockParams, Context, Handlebars, Helper, HelperDef, HelperResult, Output,
+    RenderContext, RenderError, Renderable,
 };
 use serde_json::{Map, Value};
 
@@ -52,8 +52,8 @@ impl HelperDef for SortedHelper {
         &self,
         h: &Helper<'reg, 'rc>,
         r: &'reg Handlebars,
-        ctx: &Context,
-        rc: &mut RenderContext<'reg>,
+        ctx: &'rc Context,
+        rc: &mut RenderContext<'reg, 'rc>,
         out: &mut dyn Output,
     ) -> HelperResult {
         let value = h
@@ -74,12 +74,15 @@ impl HelperDef for SortedHelper {
 
         match template {
             Some(t) => {
-                let saved_path = rc.get_path().to_vec();
-                rc.promote_local_vars();
-                let local_path_root = value.path_root();
-                if let Some(p) = local_path_root {
-                    rc.push_local_path_root(p.to_vec());
+                let mut block_context = BlockContext::new();
+
+                if let Some(path) = value.context_path() {
+                    *block_context.base_path_mut() = path.to_vec();
+                    // TODO: disable base value support for now.
+                    // block_context.set_base_value(value.value());
                 }
+
+                rc.push_block(block_context);
 
                 debug!("each value {:?}", value.value());
                 let rendered = match (value.value().is_truthy(false), value.value()) {
@@ -89,72 +92,80 @@ impl HelperDef for SortedHelper {
                         let array_path = value.context_path();
                         let sorted = sorted_array(list, sort_path, invert);
 
-                        for (x, _) in list.iter().enumerate().take(len) {
-                            let i = sorted[x];
-                            rc.set_local_var("@first".to_string(), to_json(i == 0usize));
-                            rc.set_local_var("@last".to_string(), to_json(i == len - 1));
-                            rc.set_local_var("@index".to_string(), to_json(i));
+                        for (i, _) in list.iter().enumerate().take(len) {
+                            if let Some(ref mut block) = rc.block_mut() {
+                                let is_first = i == 0usize;
+                                let is_last = i == len - 1;
 
-                            if let Some(ref p) = array_path {
-                                rc.set_path(copy_on_push_vec(p, i.to_string()))
+                                let i = sorted[i];
+
+                                block.set_local_var("@first".to_string(), to_json(is_first));
+                                block.set_local_var("@last".to_string(), to_json(is_last));
+                                block.set_local_var("@index".to_string(), to_json(i));
+                                if let Some(ref p) = array_path {
+                                    if is_first {
+                                        *block.base_path_mut() = copy_on_push_vec(p, i.to_string());
+                                    } else if let Some(ptr) = block.base_path_mut().last_mut() {
+                                        *ptr = i.to_string();
+                                    }
+                                }
+
+                                // TODO: base value
+
+                                if let Some(bp_val) = h.block_param() {
+                                    let mut params = BlockParams::new();
+                                    params.add_path(bp_val, Vec::with_capacity(0))?;
+
+                                    block.set_block_params(params);
+                                } else if let Some((bp_val, bp_index)) = h.block_param_pair() {
+                                    let mut params = BlockParams::new();
+                                    params.add_path(bp_val, Vec::with_capacity(0))?;
+                                    params.add_value(bp_index, to_json(i))?;
+
+                                    block.set_block_params(params);
+                                }
                             }
-
-                            if let Some(bp_val) = h.block_param() {
-                                let mut params = BlockParams::new();
-                                params.add_path(bp_val, rc.get_path().clone())?;
-
-                                rc.push_block_context(params)?;
-                            } else if let Some((bp_val, bp_index)) = h.block_param_pair() {
-                                let mut params = BlockParams::new();
-                                params.add_path(bp_val, rc.get_path().clone())?;
-                                params.add_value(bp_index, to_json(i))?;
-
-                                rc.push_block_context(params)?;
-                            }
-
                             t.render(r, ctx, rc, out)?;
-
-                            if h.has_block_param() {
-                                rc.pop_block_context();
-                            }
                         }
 
                         Ok(())
                     }
                     (true, &Json::Object(ref obj)) => {
-                        let mut first: bool = true;
+                        let mut is_first = true;
                         let obj_path = value.context_path();
                         let sorted: Vec<&String> = sorted_map(obj, sort_path, invert);
 
                         for k in sorted {
-                            rc.set_local_var("@first".to_string(), to_json(first));
-                            if first {
-                                first = false;
+                            if let Some(ref mut block) = rc.block_mut() {
+                                block.set_local_var("@first".to_string(), to_json(is_first));
+                                block.set_local_var("@key".to_string(), to_json(k));
+                                if let Some(ref p) = obj_path {
+                                    if is_first {
+                                        *block.base_path_mut() = copy_on_push_vec(p, k.clone());
+                                    } else if let Some(ptr) = block.base_path_mut().last_mut() {
+                                        *ptr = k.clone();
+                                    }
+                                }
+
+                                // TODO
+
+                                if let Some(bp_val) = h.block_param() {
+                                    let mut params = BlockParams::new();
+                                    params.add_path(bp_val, Vec::with_capacity(0))?;
+
+                                    block.set_block_params(params);
+                                } else if let Some((bp_val, bp_key)) = h.block_param_pair() {
+                                    let mut params = BlockParams::new();
+                                    params.add_path(bp_val, Vec::with_capacity(0))?;
+                                    params.add_value(bp_key, to_json(&k))?;
+
+                                    block.set_block_params(params);
+                                }
                             }
-
-                            rc.set_local_var("@key".to_string(), to_json(k));
-
-                            if let Some(ref p) = obj_path {
-                                rc.set_path(copy_on_push_vec(p, k.clone()));
-                            }
-
-                            if let Some(bp_val) = h.block_param() {
-                                let mut params = BlockParams::new();
-                                params.add_path(bp_val, rc.get_path().clone())?;
-
-                                rc.push_block_context(params)?;
-                            } else if let Some((bp_val, bp_key)) = h.block_param_pair() {
-                                let mut params = BlockParams::new();
-                                params.add_path(bp_val, rc.get_path().clone())?;
-                                params.add_value(bp_key, to_json(&k))?;
-
-                                rc.push_block_context(params)?;
-                            }
-
                             t.render(r, ctx, rc, out)?;
 
-                            if h.has_block_param() {
-                                rc.pop_block_context();
+                            if is_first {
+                                is_first = false;
                             }
                         }
                         Ok(())
@@ -171,12 +182,7 @@ impl HelperDef for SortedHelper {
                     ))),
                 };
 
-                if local_path_root.is_some() {
-                    rc.pop_local_path_root();
-                }
-
-                rc.demote_local_vars();
-                rc.set_path(saved_path);
+                rc.pop_block();
                 rendered
             }
             None => Ok(()),

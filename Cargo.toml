@@ -26,5 +26,7 @@ strum = "0.17"
 strum_macros = "0.17"
 
 [dependencies.handlebars]
-version = "=3.0.0-beta.4"
+version = "3.0.1"
+#git = "https://github.com/ctron/handlebars-rust.git"
+#branch = "feature/fix_issue_312_1"
 features = ["dir_source"]

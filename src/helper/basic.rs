@@ -14,7 +14,7 @@ impl HelperDef for TimesHelper {
         h: &Helper<'reg, 'rc>,
         r: &'reg Handlebars,
         ctx: &'rc Context,
-        rc: &mut RenderContext<'reg>,
+        rc: &mut RenderContext<'reg, 'rc>,
         out: &mut dyn Output,
     ) -> HelperResult {
         let n = h
@@ -75,7 +75,7 @@ impl HelperDef for ConcatHelper {
         h: &Helper<'reg, 'rc>,
         _: &'reg Handlebars,
         _: &'rc Context,
-        _: &mut RenderContext<'reg>,
+        _: &mut RenderContext<'reg, 'rc>,
         out: &mut dyn Output,
     ) -> HelperResult {
         let s: String = h
@@ -99,11 +99,11 @@ impl HelperDef for DumpHelper {
         h: &Helper<'reg, 'rc>,
         _: &'reg Handlebars,
         _: &'rc Context,
-        _: &mut RenderContext<'reg>,
+        _: &mut RenderContext<'reg, 'rc>,
         _: &mut dyn Output,
     ) -> HelperResult {
         for p in h.params() {
-            let path = p.path_root();
+            let path = p.context_path();
             let value = p.value();
             info!("'{:?}' => '{}'", path, serde_json::to_string(value)?);
         }

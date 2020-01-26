@@ -9,7 +9,7 @@ use std::fs::File;
 use std::io::Write;
 use url::Url;
 
-use crate::generator::GeneratorContext;
+use crate::generator::GeneratorConfig;
 use chrono::{DateTime, Utc};
 use std::str::FromStr;
 use strum_macros::{AsRefStr, AsStaticStr, EnumString};
@@ -40,8 +40,8 @@ impl SitemapProcessor {
 }
 
 impl Processor for SitemapProcessor {
-    fn create<'a>(&self, context: &'a GeneratorContext) -> Result<Box<dyn ProcessorContext + 'a>> {
-        let writer = File::create(context.output.join("sitemap.xml"))?;
+    fn create<'a>(&self, config: &'a GeneratorConfig) -> Result<Box<dyn ProcessorContext + 'a>> {
+        let writer = File::create(config.output.join("sitemap.xml"))?;
         let mut writer = Writer::new(writer);
 
         writer.write_event(Event::Decl(BytesDecl::new(b"1.0", Some(b"UTF-8"), None)))?;
@@ -57,7 +57,7 @@ impl Processor for SitemapProcessor {
             published_path: self.published_path.clone(),
             updated_path: self.updated_path.clone(),
             writer,
-            context,
+            config,
         }))
     }
 }
@@ -67,7 +67,7 @@ pub struct SitemapContext<'a, W: Write> {
     updated_path: String,
 
     writer: Writer<W>,
-    context: &'a GeneratorContext<'a>,
+    config: &'a GeneratorConfig,
 }
 
 #[derive(AsRefStr, AsStaticStr, EnumString)]
@@ -154,7 +154,7 @@ impl<'a, W: Write> SitemapContext<'a, W> {
 
 impl<'a, W: Write> ProcessorContext for SitemapContext<'a, W> {
     fn file_created(&mut self, path: &RelativePath, context: &Value) -> Result<()> {
-        let url = crate::helper::url::full_url_for(self.context.basename, path.as_str())?;
+        let url = crate::helper::url::full_url_for(&self.config.basename, path.as_str())?;
         let last_mod = self.last_mod_from(context)?;
 
         // change freq

@@ -5,8 +5,12 @@ use handlebars::{
 };
 use url::Url;
 
+use crate::generator::GeneratorContext;
 use failure::Error;
 use log::debug;
+use log::info;
+
+use std::sync::{Arc, RwLock};
 
 pub fn full_url_for<S: AsRef<str>>(basename: &Url, path: S) -> Result<Url, Error> {
     let path = path.as_ref();
@@ -21,9 +25,7 @@ pub fn full_url_for<S: AsRef<str>>(basename: &Url, path: S) -> Result<Url, Error
     Ok(basename.join(path)?)
 }
 
-pub fn full_url_from(url: &str, ctx: &Context) -> Result<url::Url, RenderError> {
-    let output = generator::Output::from(ctx)?;
-
+pub fn full_url_from(url: &str, output: &generator::Output) -> Result<url::Url, RenderError> {
     // start with the site base name
     let result = Url::parse(&output.site_url).map_err(|err| RenderError::with(err))?;
 
@@ -49,7 +51,7 @@ pub fn full_url_from(url: &str, ctx: &Context) -> Result<url::Url, RenderError> 
 
 fn full_url<'reg: 'rc, 'rc>(
     h: &Helper<'reg, 'rc>,
-    ctx: &'rc Context,
+    output: &generator::Output,
 ) -> Result<url::Url, RenderError> {
     let url = h
         .param(0)
@@ -61,22 +63,29 @@ fn full_url<'reg: 'rc, 'rc>(
         .as_str()
         .ok_or(RenderError::new("Wrong value type of URL. Must be string."))?;
 
-    full_url_from(url, ctx)
+    full_url_from(url, output)
 }
 
-#[derive(Clone, Copy)]
-pub struct AbsoluteUrlHelper;
+pub struct AbsoluteUrlHelper {
+    pub context: Arc<RwLock<Option<GeneratorContext>>>,
+}
 
 impl HelperDef for AbsoluteUrlHelper {
     fn call<'reg: 'rc, 'rc>(
         &self,
         h: &Helper<'reg, 'rc>,
         _: &'reg Handlebars,
-        ctx: &'rc Context,
-        _: &mut RenderContext<'reg>,
+        _: &'rc Context,
+        _: &mut RenderContext,
         out: &mut dyn Output,
     ) -> HelperResult {
-        let url = full_url(h, ctx)?;
+        let context = self.context.read();
+        let context = context
+            .as_ref()
+            .map_err(|_| RenderError::new("Failed to get generator context"))?
+            .as_ref()
+            .unwrap();
+        let url = full_url(h, &context.output)?;
 
         out.write(url.as_str())?;
 
@@ -84,19 +93,26 @@ impl HelperDef for AbsoluteUrlHelper {
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct RelativeUrlHelper;
+pub struct RelativeUrlHelper {
+    pub context: Arc<RwLock<Option<GeneratorContext>>>,
+}
 
 impl HelperDef for RelativeUrlHelper {
     fn call<'reg: 'rc, 'rc>(
         &self,
         h: &Helper<'reg, 'rc>,
         _: &'reg Handlebars,
-        ctx: &'rc Context,
-        _: &mut RenderContext<'reg>,
+        _: &'rc Context,
+        _: &mut RenderContext,
         out: &mut dyn Output,
     ) -> HelperResult {
-        let url = full_url(h, ctx)?;
+        let context = self.context.read();
+        let context = context
+            .as_ref()
+            .map_err(|_| RenderError::new("Failed to get generator context"))?
+            .as_ref()
+            .unwrap();
+        let url = full_url(h, &context.output)?;
 
         out.write(url.path())?;
 
@@ -104,8 +120,9 @@ impl HelperDef for RelativeUrlHelper {
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct ActiveHelper;
+pub struct ActiveHelper {
+    pub context: Arc<RwLock<Option<GeneratorContext>>>,
+}
 
 impl HelperDef for ActiveHelper {
     fn call<'reg: 'rc, 'rc>(
@@ -113,7 +130,7 @@ impl HelperDef for ActiveHelper {
         h: &Helper<'reg, 'rc>,
         r: &'reg Handlebars,
         ctx: &'rc Context,
-        rc: &mut RenderContext<'reg>,
+        rc: &mut RenderContext<'reg, 'rc>,
         out: &mut dyn Output,
     ) -> HelperResult {
         let mut url = h
@@ -128,8 +145,14 @@ impl HelperDef for ActiveHelper {
             url.push_str("index.html")
         }
 
-        let check_url = full_url_from(&url, ctx)?;
-        let page_url = full_url_from("", ctx)?;
+        let context = self.context.read();
+        let context = context
+            .as_ref()
+            .map_err(|_| RenderError::new("Failed to get generator context"))?
+            .as_ref()
+            .unwrap();
+        let check_url = full_url_from(&url, &context.output)?;
+        let page_url = full_url_from("", &context.output)?;
 
         debug!("check: {} - page: {}", check_url, page_url);
 
@@ -153,7 +176,6 @@ impl HelperDef for ActiveHelper {
 mod tests {
     use super::*;
     use crate::generator::Output;
-    use serde_json::Map;
     use std::str::FromStr;
 
     fn test_full_url(site_url: &str, path: &str, url: &str, expected: &str) {
@@ -161,11 +183,8 @@ mod tests {
             site_url: site_url.into(),
             path: path.into(),
         };
-        let mut m = Map::new();
-        m.insert("output".into(), serde_json::to_value(o).expect(""));
-        let ctx = Context::wraps(m).expect("");
         assert_eq!(
-            full_url_from(url, &ctx).expect(""),
+            full_url_from(url, &o).expect(""),
             Url::from_str(expected).expect("")
         );
     }

@@ -1,7 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::{env, fs};
 
-use handlebars::{Context, Handlebars};
+use handlebars::Handlebars;
 
 use log::{debug, info};
 
@@ -33,13 +33,14 @@ use clap::Clap;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::str::FromStr;
+use std::sync::{Arc, RwLock};
 use url::Url;
 
 lazy_static! {
     static ref RE: Regex = Regex::new(r"/{2,}").unwrap();
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Output {
     // path of the output file
@@ -59,19 +60,6 @@ impl Output {
             site_url: site_url.into(),
         }
     }
-
-    pub fn from(ctx: &Context) -> Result<Self> {
-        let output = ctx.data().as_object().ok_or(GeneratorError::Error(
-            "'output' variable is missing or not an object".into(),
-        ))?;
-        let output = output
-            .get(&"output".to_string())
-            .ok_or(GeneratorError::Error(
-                "'output' variable is missing or not an object".into(),
-            ))?;
-
-        Ok(serde_json::from_value(output.clone())?)
-    }
 }
 
 #[derive(Clone, Clap)]
@@ -90,10 +78,26 @@ pub struct Options {
     dump: bool,
 }
 
-pub struct GeneratorContext<'a> {
-    pub root: &'a Path,
-    pub output: &'a Path,
-    pub basename: &'a Url,
+#[derive(Debug, Clone)]
+pub struct GeneratorConfig {
+    pub root: PathBuf,
+    pub output: PathBuf,
+    pub basename: Url,
+}
+
+#[derive(Debug, Clone)]
+pub struct GeneratorContext {
+    pub config: GeneratorConfig,
+    pub output: Output,
+}
+
+impl GeneratorContext {
+    pub fn new(config: &GeneratorConfig, output: &Output) -> Self {
+        GeneratorContext {
+            config: config.clone(),
+            output: output.clone(),
+        }
+    }
 }
 
 pub struct Generator<'a> {
@@ -107,9 +111,11 @@ pub struct Generator<'a> {
     config: Option<Render>,
     full_content: Value,
     compact_content: Value,
+
+    context_provider: Arc<RwLock<Option<GeneratorContext>>>,
 }
 
-impl Generator<'_> {
+impl<'a> Generator<'a> {
     fn output(&self) -> PathBuf {
         self.root.join("output")
     }
@@ -119,24 +125,6 @@ impl Generator<'_> {
 
         let mut handlebars = Handlebars::new();
         handlebars.set_strict_mode(true);
-
-        // register helpers
-
-        handlebars.register_helper("dump", Box::new(DumpHelper));
-
-        handlebars.register_helper("times", Box::new(TimesHelper));
-        handlebars.register_helper("expand", Box::new(ExpandHelper));
-        handlebars.register_helper("concat", Box::new(ConcatHelper));
-
-        handlebars.register_helper("sorted", Box::new(SortedHelper));
-
-        handlebars.register_helper("absolute_url", Box::new(AbsoluteUrlHelper));
-        handlebars.register_helper("relative_url", Box::new(RelativeUrlHelper));
-        handlebars.register_helper("active", Box::new(ActiveHelper));
-
-        handlebars.register_helper("markdownify", Box::new(MarkdownifyHelper));
-
-        handlebars.register_helper("timestamp", Box::new(TimeHelper));
 
         // register processors
 
@@ -153,6 +141,43 @@ impl Generator<'_> {
             None => env::current_dir().expect("Failed to get current directory"),
         };
 
+        // context
+
+        let context_provider = Arc::new(RwLock::new(None));
+
+        // register helpers
+
+        handlebars.register_helper("dump", Box::new(DumpHelper));
+
+        handlebars.register_helper("times", Box::new(TimesHelper));
+        handlebars.register_helper("expand", Box::new(ExpandHelper));
+        handlebars.register_helper("concat", Box::new(ConcatHelper));
+
+        handlebars.register_helper("sorted", Box::new(SortedHelper));
+
+        handlebars.register_helper("markdownify", Box::new(MarkdownifyHelper));
+
+        handlebars.register_helper("timestamp", Box::new(TimeHelper));
+
+        handlebars.register_helper(
+            "absolute_url",
+            Box::new(AbsoluteUrlHelper {
+                context: context_provider.clone(),
+            }),
+        );
+        handlebars.register_helper(
+            "relative_url",
+            Box::new(RelativeUrlHelper {
+                context: context_provider.clone(),
+            }),
+        );
+        handlebars.register_helper(
+            "active",
+            Box::new(ActiveHelper {
+                context: context_provider.clone(),
+            }),
+        );
+
         // create generator
 
         Generator {
@@ -164,14 +189,17 @@ impl Generator<'_> {
             config: Default::default(),
             full_content: Default::default(),
             compact_content: Default::default(),
+            context_provider: context_provider.clone(),
         }
     }
 
     pub fn run(&mut self) -> Result<()> {
         debug!("Running generator");
 
+        let templates = self.root.join("templates");
+        info!("Loading templates: {:?}", templates);
         self.handlebars
-            .register_templates_directory(".hbs", self.root.join("templates"))?;
+            .register_templates_directory(".hbs", templates)?;
 
         // clean output
         self.clean()?;
@@ -242,11 +270,12 @@ impl Generator<'_> {
         }
     }
 
-    fn build(&self) -> Result<()> {
+    fn build(&mut self) -> Result<()> {
         let config = self
             .config
             .as_ref()
-            .ok_or(GeneratorError::Error("Missing site configuration".into()))?;
+            .ok_or(GeneratorError::Error("Missing site configuration".into()))?
+            .clone();
 
         let mut basename = (&self.options.basename)
             .as_ref()
@@ -260,18 +289,18 @@ impl Generator<'_> {
         let basename = Url::from_str(&basename)?;
 
         // context
-        let context = GeneratorContext {
-            basename: &basename,
-            root: &self.root,
-            output: &self.output(),
+        let generator_config = GeneratorConfig {
+            basename: basename.clone(),
+            root: self.root.clone(),
+            output: self.output(),
         };
 
-        let mut processors = ProcessorSession::new(&self.processors, &context)?;
+        let mut processors = ProcessorSession::new(&self.processors, &generator_config)?;
 
         // render all rules
         info!("Rendering content");
         for rule in &config.rules {
-            self.render_rule(&rule, &mut processors, &context)?;
+            self.render_rule(&rule, &mut processors, &generator_config)?;
         }
 
         // process assets
@@ -305,24 +334,25 @@ impl Generator<'_> {
     }
 
     fn render_rule(
-        &self,
+        &mut self,
         rule: &Rule,
         processors: &mut ProcessorSession,
-        context: &GeneratorContext,
+        config: &GeneratorConfig,
     ) -> Result<()> {
         info!(
             "Render rule: {:?}:{:?} -> {:?} -> {}",
             rule.selector_type, rule.selector, rule.template, rule.output_pattern
         );
 
-        let result = rule.processor()?.query(&self.full_content)?;
+        let result: Vec<_> = rule.processor()?.query(&self.full_content)?;
+        let result: Vec<Value> = result.iter().cloned().cloned().collect();
 
         info!("Matches {} entries", result.len());
 
         // process selected entries
-        for entry in result {
+        for entry in &result {
             debug!("Processing entry: {}", entry);
-            self.process_render(rule, entry, processors, context)?;
+            self.process_render(rule, entry, processors, config)?;
         }
 
         // done
@@ -330,11 +360,11 @@ impl Generator<'_> {
     }
 
     fn process_render(
-        &self,
+        &mut self,
         rule: &Rule,
         context: &Value,
         processors: &mut ProcessorSession,
-        generator_context: &GeneratorContext,
+        config: &GeneratorConfig,
     ) -> Result<()> {
         // eval
         let path = self
@@ -356,32 +386,47 @@ impl Generator<'_> {
 
         // page data
 
-        let output = Output::new(generator_context.basename.as_str(), &path);
-        let output = serde_json::to_value(&output)?;
+        let output = Output::new(config.basename.as_str(), &path);
 
-        // render
-        info!("Render '{}' with '{:?}'", path, template);
+        {
+            let ctx = GeneratorContext::new(config, &output);
+            {
+                *self.context_provider.write().unwrap() = Some(ctx);
+                // *Arc::make_mut(&mut self.context_provider) = Some(ctx);
+            }
+            let output = serde_json::to_value(&output)?;
 
-        info!("  Target: {:?}", target);
-        let writer = File::create(target)?;
+            // render
 
-        let context = Generator::build_context(&rule, &context)?;
-        let data = &self.data(output, context.clone());
+            info!("Render '{}' with '{:?}'", path, template);
+            info!("  Target: {:?}", target);
 
-        match template {
-            Some(ref t) => self.handlebars.render_to_write(t, data, writer)?,
-            None => {
-                let content = match &context.as_object().and_then(|s| s.get("content")) {
+            let writer = File::create(target)?;
+
+            let context = Generator::build_context(&rule, &context)?;
+            let data = &self.data(output, context.clone());
+
+            match template {
+                Some(ref t) => self.handlebars.render_to_write(t, data, writer)?,
+                None => {
+                    let content = match &context.as_object().and_then(|s| s.get("content")) {
                     Some(Value::String(c)) => Ok(c),
                     _ => Err(GeneratorError::Error("Rule is missing 'template' on rule and '.content' value in context. Either must be set.".into())),
                 }?;
-                self.handlebars
-                    .render_template_to_write(content, data, writer)?;
+                    self.handlebars
+                        .render_template_to_write(content, data, writer)?;
+                }
+            }
+
+            // call processors
+            processors.file_created(&relative_target, data)?;
+
+            // reset current context
+            {
+                *self.context_provider.write().unwrap() = None;
+                // *Arc::make_mut(&mut self.context_provider) = None;
             }
         }
-
-        // call processors
-        processors.file_created(&relative_target, data)?;
 
         // done
         Ok(())
@@ -413,7 +458,7 @@ impl Generator<'_> {
                 _ => {
                     return Err(GeneratorError::Error(
                         "Context value must be a string/JSON path".into(),
-                    ))
+                    ));
                 }
             }
         }
