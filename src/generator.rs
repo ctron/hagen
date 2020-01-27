@@ -28,6 +28,7 @@ use relative_path::RelativePath;
 use crate::processor::{Processor, ProcessorSession};
 
 use crate::helper::sort::SortedHelper;
+use crate::processor::rss::RssProcessor;
 use crate::processor::sitemap::SitemapProcessor;
 use clap::Clap;
 use lazy_static::lazy_static;
@@ -133,6 +134,7 @@ impl<'a> Generator<'a> {
             "$.context.page.frontMatter.timestamp.published",
             "$.context.page.frontMatter.timestamp.updated",
         )));
+        processors.push(Box::new(RssProcessor::new()));
 
         // eval root
 

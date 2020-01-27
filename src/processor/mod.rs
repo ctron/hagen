@@ -1,8 +1,12 @@
 use crate::generator::GeneratorConfig;
 use failure::Error;
+use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+use quick_xml::Writer;
 use relative_path::RelativePath;
 use serde_json::Value;
+use std::io::Write;
 
+pub mod rss;
 pub mod sitemap;
 
 type Result<T> = std::result::Result<T, Error>;
@@ -45,4 +49,23 @@ impl<'a> ProcessorSession<'a> {
         }
         Ok(())
     }
+}
+
+pub fn xml_write_element<'a, S1, S2, W>(writer: &mut Writer<W>, name: S1, value: S2) -> Result<()>
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+    W: Write,
+{
+    writer.write_event(Event::Start(BytesStart::borrowed_name(
+        name.as_ref().as_bytes(),
+    )))?;
+
+    writer.write_event(Event::Text(BytesText::from_plain_str(value.as_ref())))?;
+
+    writer.write_event(Event::End(BytesEnd::borrowed(name.as_ref().as_bytes())))?;
+
+    writer.write(b"\n")?;
+
+    Ok(())
 }

@@ -1,4 +1,4 @@
-use crate::processor::{Processor, ProcessorContext};
+use crate::processor::{xml_write_element, Processor, ProcessorContext};
 
 use failure::Error;
 
@@ -83,23 +83,6 @@ pub enum ChangeFrequency {
 }
 
 impl<'a, W: Write> SitemapContext<'a, W> {
-    fn write_element<S1: AsRef<str>, S2: AsRef<str>>(&mut self, name: S1, value: S2) -> Result<()> {
-        self.writer
-            .write_event(Event::Start(BytesStart::borrowed_name(
-                name.as_ref().as_bytes(),
-            )))?;
-
-        self.writer
-            .write_event(Event::Text(BytesText::from_plain_str(value.as_ref())))?;
-
-        self.writer
-            .write_event(Event::End(BytesEnd::borrowed(name.as_ref().as_bytes())))?;
-
-        self.writer.write(b"\n")?;
-
-        Ok(())
-    }
-
     fn write_entry(
         &mut self,
         loc: &Url,
@@ -112,18 +95,22 @@ impl<'a, W: Write> SitemapContext<'a, W> {
         self.writer.write(b"\n")?;
 
         self.writer.write(b"\t")?;
-        self.write_element("loc", &loc)?;
+        xml_write_element(&mut self.writer, "loc", &loc)?;
         if let Some(last_mod) = last_mod {
             self.writer.write(b"\t")?;
-            self.write_element("lastmod", last_mod.format("%Y-%m-%d").to_string())?;
+            xml_write_element(
+                &mut self.writer,
+                "lastmod",
+                last_mod.format("%Y-%m-%d").to_string(),
+            )?;
         }
         if let Some(change_freq) = change_freq {
             self.writer.write(b"\t")?;
-            self.write_element("changefreq", &change_freq)?;
+            xml_write_element(&mut self.writer, "changefreq", &change_freq)?;
         }
         if let Some(priority) = priority {
             self.writer.write(b"\t")?;
-            self.write_element("priority", format!("{:.2}", priority))?;
+            xml_write_element(&mut self.writer, "priority", format!("{:.2}", priority))?;
         }
 
         self.writer
