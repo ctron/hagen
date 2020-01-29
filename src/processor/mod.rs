@@ -1,9 +1,12 @@
 use crate::generator::GeneratorConfig;
 use failure::Error;
+use failure::_core::iter::FlatMap;
+use handlebars::Handlebars;
 use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::Writer;
 use relative_path::RelativePath;
-use serde_json::Value;
+use serde_json::{Map, Value};
+use std::collections::BTreeMap;
 use std::io::Write;
 
 pub mod rss;
@@ -12,12 +15,23 @@ pub mod sitemap;
 type Result<T> = std::result::Result<T, Error>;
 
 pub trait Processor {
-    fn create<'a>(&self, config: &'a GeneratorConfig) -> Result<Box<dyn ProcessorContext + 'a>>;
+    fn create<'a, 'reg>(
+        &self,
+        handlebars: &'reg mut Handlebars,
+        data: &Value,
+        config: &'a GeneratorConfig,
+        processor_config: Value,
+    ) -> Result<Box<dyn ProcessorContext + 'a>>;
 }
 
 pub trait ProcessorContext {
-    fn file_created(&mut self, path: &RelativePath, context: &Value) -> Result<()>;
-    fn complete(&mut self) -> Result<()>;
+    fn file_created(
+        &mut self,
+        path: &RelativePath,
+        context: &Value,
+        handlebars: &mut Handlebars,
+    ) -> Result<()>;
+    fn complete(&mut self, handlebars: &mut Handlebars) -> Result<()>;
 }
 
 pub struct ProcessorSession<'a> {
@@ -25,27 +39,42 @@ pub struct ProcessorSession<'a> {
 }
 
 impl<'a> ProcessorSession<'a> {
-    pub fn new(
-        processors: &Vec<Box<dyn Processor>>,
+    pub fn new<'reg>(
+        processors: &BTreeMap<String, Box<dyn Processor>>,
+        handlebars: &'reg mut Handlebars,
+        data: &Value,
         config: &'a GeneratorConfig,
+        processor_configs: &Map<String, Value>,
     ) -> Result<ProcessorSession<'a>> {
-        let processors: Result<Vec<Box<dyn ProcessorContext + 'a>>> =
-            processors.into_iter().map(|p| p.create(config)).collect();
+        let processors: Result<Vec<Box<dyn ProcessorContext + 'a>>> = processors
+            .into_iter()
+            .map(|(k, p)| {
+                processor_configs
+                    .get(k)
+                    .map(|c| p.create(handlebars, data, config, c.clone()))
+            })
+            .filter_map(|o| o)
+            .collect();
         Ok(ProcessorSession {
             processors: processors?,
         })
     }
 
-    pub fn file_created(&mut self, path: &RelativePath, context: &Value) -> Result<()> {
+    pub fn file_created(
+        &mut self,
+        path: &RelativePath,
+        context: &Value,
+        handlebars: &mut Handlebars,
+    ) -> Result<()> {
         for p in &mut self.processors {
-            (*p).file_created(path, context)?;
+            (*p).file_created(path, context, handlebars)?;
         }
         Ok(())
     }
 
-    pub fn complete(&mut self) -> Result<()> {
+    pub fn complete(&mut self, handlebars: &mut Handlebars) -> Result<()> {
         for p in &mut self.processors {
-            (*p).complete()?;
+            (*p).complete(handlebars)?;
         }
         Ok(())
     }

@@ -2,7 +2,7 @@ use crate::processor::{xml_write_element, Processor, ProcessorContext};
 
 use failure::Error;
 
-use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
+use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, Event};
 use quick_xml::Writer;
 use relative_path::RelativePath;
 use std::fs::File;
@@ -19,29 +19,31 @@ use serde_json::Value;
 
 use log::debug;
 
+use handlebars::Handlebars;
+use serde::{Deserialize, Serialize};
+
 type Result<T> = std::result::Result<T, Error>;
 
-pub struct SitemapProcessor {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct SitemapProcessorConfig {
     published_path: String,
     updated_path: String,
 }
 
-impl SitemapProcessor {
-    pub fn new<S1, S2>(published_path: S1, updated_path: S2) -> SitemapProcessor
-    where
-        S1: Into<String>,
-        S2: Into<String>,
-    {
-        SitemapProcessor {
-            published_path: published_path.into(),
-            updated_path: updated_path.into(),
-        }
-    }
-}
+pub struct SitemapProcessor;
 
 impl Processor for SitemapProcessor {
-    fn create<'a>(&self, config: &'a GeneratorConfig) -> Result<Box<dyn ProcessorContext + 'a>> {
-        let writer = File::create(config.output.join("sitemap.xml"))?;
+    fn create<'a, 'reg>(
+        &self,
+        handlebars: &'reg mut Handlebars,
+        data: &Value,
+        generator_config: &'a GeneratorConfig,
+        processor_config: Value,
+    ) -> Result<Box<dyn ProcessorContext + 'a>> {
+        let config = serde_json::from_value(processor_config)?;
+
+        let writer = File::create(generator_config.output.join("sitemap.xml"))?;
         let mut writer = Writer::new(writer);
 
         writer.write_event(Event::Decl(BytesDecl::new(b"1.0", Some(b"UTF-8"), None)))?;
@@ -54,20 +56,18 @@ impl Processor for SitemapProcessor {
         writer.write(b"\n")?;
 
         Ok(Box::new(SitemapContext::<'a> {
-            published_path: self.published_path.clone(),
-            updated_path: self.updated_path.clone(),
-            writer,
             config,
+            writer,
+            generator_config,
         }))
     }
 }
 
 pub struct SitemapContext<'a, W: Write> {
-    published_path: String,
-    updated_path: String,
+    config: SitemapProcessorConfig,
 
     writer: Writer<W>,
-    config: &'a GeneratorConfig,
+    generator_config: &'a GeneratorConfig,
 }
 
 #[derive(AsRefStr, AsStaticStr, EnumString)]
@@ -120,8 +120,8 @@ impl<'a, W: Write> SitemapContext<'a, W> {
     }
 
     fn last_mod_from(&self, context: &Value) -> Result<Option<DateTime<Utc>>> {
-        let published = value_by_path(context, &self.published_path)?;
-        let updated = value_by_path(context, &self.updated_path)?;
+        let published = value_by_path(context, &self.config.published_path)?;
+        let updated = value_by_path(context, &self.config.updated_path)?;
 
         debug!("published: {:?}, updated: {:?}", published, updated);
 
@@ -140,8 +140,13 @@ impl<'a, W: Write> SitemapContext<'a, W> {
 }
 
 impl<'a, W: Write> ProcessorContext for SitemapContext<'a, W> {
-    fn file_created(&mut self, path: &RelativePath, context: &Value) -> Result<()> {
-        let url = crate::helper::url::full_url_for(&self.config.basename, path.as_str())?;
+    fn file_created(
+        &mut self,
+        path: &RelativePath,
+        context: &Value,
+        handlebars: &mut Handlebars,
+    ) -> Result<()> {
+        let url = crate::helper::url::full_url_for(&self.generator_config.basename, path.as_str())?;
         let last_mod = self.last_mod_from(context)?;
 
         // change freq
@@ -174,7 +179,7 @@ impl<'a, W: Write> ProcessorContext for SitemapContext<'a, W> {
         Ok(())
     }
 
-    fn complete(&mut self) -> Result<()> {
+    fn complete(&mut self, handlebars: &mut Handlebars) -> Result<()> {
         self.writer
             .write_event(Event::End(BytesEnd::borrowed(b"urlset")))?;
 

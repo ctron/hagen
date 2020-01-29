@@ -8,7 +8,6 @@ use url::Url;
 use crate::generator::GeneratorContext;
 use failure::Error;
 use log::debug;
-use log::info;
 
 use std::sync::{Arc, RwLock};
 

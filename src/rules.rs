@@ -33,6 +33,8 @@ pub struct Render {
     pub site: Site,
     pub rules: Vec<Rule>,
     pub assets: Vec<Asset>,
+    #[serde(default)]
+    pub processors: Map<String, Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -33,6 +33,7 @@ use crate::processor::sitemap::SitemapProcessor;
 use clap::Clap;
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::collections::BTreeMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 use url::Url;
@@ -107,7 +108,7 @@ pub struct Generator<'a> {
 
     handlebars: Handlebars<'a>,
 
-    processors: Vec<Box<dyn Processor>>,
+    processors: BTreeMap<String, Box<dyn Processor>>,
 
     config: Option<Render>,
     full_content: Value,
@@ -129,12 +130,9 @@ impl<'a> Generator<'a> {
 
         // register processors
 
-        let mut processors: Vec<Box<dyn Processor>> = Vec::new();
-        processors.push(Box::new(SitemapProcessor::new(
-            "$.context.page.frontMatter.timestamp.published",
-            "$.context.page.frontMatter.timestamp.updated",
-        )));
-        processors.push(Box::new(RssProcessor::new()));
+        let mut processors: BTreeMap<String, Box<dyn Processor>> = BTreeMap::new();
+        processors.insert("sitemap".into(), Box::new(SitemapProcessor));
+        processors.insert("rss".into(), Box::new(RssProcessor));
 
         // eval root
 
@@ -297,7 +295,14 @@ impl<'a> Generator<'a> {
             output: self.output(),
         };
 
-        let mut processors = ProcessorSession::new(&self.processors, &generator_config)?;
+        let data = self.data(None, None);
+        let mut processors = ProcessorSession::new(
+            &self.processors,
+            &mut self.handlebars,
+            &data,
+            &generator_config,
+            &config.processors,
+        )?;
 
         // render all rules
         info!("Rendering content");
@@ -311,7 +316,7 @@ impl<'a> Generator<'a> {
             self.process_asset(a)?;
         }
 
-        processors.complete()?;
+        processors.complete(&mut self.handlebars)?;
 
         info!("Done");
         // done
@@ -394,7 +399,6 @@ impl<'a> Generator<'a> {
             let ctx = GeneratorContext::new(config, &output);
             {
                 *self.context_provider.write().unwrap() = Some(ctx);
-                // *Arc::make_mut(&mut self.context_provider) = Some(ctx);
             }
             let output = serde_json::to_value(&output)?;
 
@@ -406,7 +410,7 @@ impl<'a> Generator<'a> {
             let writer = File::create(target)?;
 
             let context = Generator::build_context(&rule, &context)?;
-            let data = &self.data(output, context.clone());
+            let data = &self.data(Some(output), Some(context.clone()));
 
             match template {
                 Some(ref t) => self.handlebars.render_to_write(t, data, writer)?,
@@ -421,12 +425,11 @@ impl<'a> Generator<'a> {
             }
 
             // call processors
-            processors.file_created(&relative_target, data)?;
+            processors.file_created(&relative_target, data, &mut self.handlebars)?;
 
             // reset current context
             {
                 *self.context_provider.write().unwrap() = None;
-                // *Arc::make_mut(&mut self.context_provider) = None;
             }
         }
 
@@ -468,12 +471,16 @@ impl<'a> Generator<'a> {
         Ok(Value::Object(result))
     }
 
-    fn data(&self, output: Value, context: Value) -> Value {
+    fn data(&self, output: Option<Value>, context: Option<Value>) -> Value {
         let mut data = serde_json::value::Map::new();
 
         // add the output context
-        data.insert("output".into(), output);
-        data.insert("context".into(), context);
+        if let Some(output) = output {
+            data.insert("output".into(), output);
+        }
+        if let Some(context) = context {
+            data.insert("context".into(), context);
+        }
         // add the full content tree
         data.insert("full".into(), self.full_content.clone());
         // add the compact content tree
