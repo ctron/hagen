@@ -40,6 +40,8 @@ impl Processor for RssProcessor {
         let now = Utc::now();
         xml_write_element(&mut writer, "lastBuildDate", now.to_rfc2822().to_string())?;
 
+        xml_write_element(&mut writer, "generator", "https://github.com/ctron/hagen")?;
+
         Ok(Box::new(RssContext::<'a> { writer, config }))
     }
 }
@@ -51,6 +53,29 @@ pub struct RssContext<'a, W: Write> {
 
 impl<'a, W: Write> ProcessorContext for RssContext<'a, W> {
     fn file_created(&mut self, path: &RelativePath, context: &Value) -> Result<()> {
+        // item
+
+        self.writer
+            .write_event(Event::Start(BytesStart::borrowed_name(b"item")))?;
+        self.writer.write(b"\n")?;
+
+        // link
+
+        let url = crate::helper::url::full_url_for(&self.config.basename, path.as_str())?;
+        self.writer.write(b"\t")?;
+        xml_write_element(&mut self.writer, "link", &url)?;
+
+        // guid
+
+        self.writer.write(b"\t")?;
+        xml_write_element(&mut self.writer, "guid", &url)?;
+
+        // /item
+
+        self.writer
+            .write_event(Event::End(BytesEnd::borrowed(b"item")))?;
+        self.writer.write(b"\n")?;
+
         Ok(())
     }
 
