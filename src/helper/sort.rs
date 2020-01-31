@@ -253,8 +253,8 @@ fn sort(sort_path: &str, v1: &Value, v2: &Value) -> Ordering {
 #[cfg(test)]
 mod test {
     use super::*;
-    use log::{Level, LevelFilter};
-    use serde::{Deserialize, Serialize};
+    use log::LevelFilter;
+    use serde::Serialize;
     use serde_json::Map;
     use std::collections::BTreeMap;
 

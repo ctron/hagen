@@ -1,6 +1,5 @@
 use crate::generator::GeneratorConfig;
 use failure::Error;
-use failure::_core::iter::FlatMap;
 use handlebars::Handlebars;
 use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::Writer;

@@ -181,6 +181,7 @@ mod tests {
         let o = Output {
             site_url: site_url.into(),
             path: path.into(),
+            template: None,
         };
         assert_eq!(
             full_url_from(url, &o).expect(""),
