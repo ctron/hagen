@@ -4,7 +4,8 @@
 
 ## Minimal example setup
 
-`render.yaml`:
+### `hagen.yaml`
+
 ~~~yaml
 rules:
   - selectorType: layout
@@ -16,7 +17,7 @@ assets:
     to: assets
 ~~~
 
-`templates/default.hbs`:
+### `templates/default.hbs`
 ~~~handlebars
 <!doctype html>
 <html>
@@ -37,14 +38,14 @@ assets:
 </html>
 ~~~
 
-`content/site.yaml`:
+### `content/site.yaml`
 ~~~yaml
 info:
   title: Example site
   clain: Just testing.
 ~~~
 
-`content/index.md`:
+### `content/index.md`
 ~~~markdown
 ---
 layout: default
