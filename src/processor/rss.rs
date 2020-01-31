@@ -42,6 +42,7 @@ struct Site {
 struct Page {
     pub published: Option<String>,
     pub updated: Option<String>,
+    pub title: String,
     pub having: Having,
 }
 
@@ -206,7 +207,7 @@ impl<'a, W: Write> RssContext<'a, W> {
         &self,
         context: &Value,
         path: &RelativePath,
-    ) -> Result<Option<(Option<DateTime<Utc>>, Option<DateTime<Utc>>)>> {
+    ) -> Result<Option<(String, Option<DateTime<Utc>>, Option<DateTime<Utc>>)>> {
         for p in &self.config.pages {
             if p.having.matches(context)? {
                 let published = p
@@ -230,7 +231,15 @@ impl<'a, W: Write> RssContext<'a, W> {
                     .transpose()?
                     .unwrap_or(published);
 
-                return Ok(Some((published, updated)));
+                let l = first_value_for_path(context, &p.title)?.and_then(|s| s.as_str());
+                let l = l.ok_or_else(|| {
+                    GeneratorError::Error(format!(
+                        "Missing value '{}' for RSS page {}",
+                        p.title, path
+                    ))
+                })?;
+
+                return Ok(Some((l.to_string(), published, updated)));
             }
         }
 
@@ -271,7 +280,10 @@ impl<'a, W: Write> ProcessorContext for RssContext<'a, W> {
 
         // pubDate
 
-        if let Some(published) = m.0 {
+        self.writer.write(b"\t")?;
+        xml_write_element(&mut self.writer, "title", m.0)?;
+
+        if let Some(published) = m.1 {
             self.writer.write(b"\t")?;
             xml_write_element(&mut self.writer, "pubDate", published.to_rfc2822())?;
         }
