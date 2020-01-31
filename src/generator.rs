@@ -49,17 +49,21 @@ pub struct Output {
     pub path: String,
     // the site base name
     pub site_url: String,
+    // the name of template
+    pub template: Option<String>,
 }
 
 impl Output {
-    pub fn new<S1, S2>(site_url: S1, path: S2) -> Self
+    pub fn new<S1, S2, S3>(site_url: S1, path: S2, template: Option<S3>) -> Self
     where
         S1: Into<String>,
         S2: Into<String>,
+        S3: Into<String>,
     {
         Output {
             path: path.into(),
             site_url: site_url.into(),
+            template: template.map(|s| s.into()),
         }
     }
 }
@@ -393,7 +397,7 @@ impl<'a> Generator<'a> {
 
         // page data
 
-        let output = Output::new(config.basename.as_str(), &path);
+        let output = Output::new(config.basename.as_str(), &path, template.as_ref());
 
         {
             let ctx = GeneratorContext::new(config, &output);

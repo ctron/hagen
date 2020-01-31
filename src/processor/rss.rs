@@ -10,6 +10,8 @@ use relative_path::RelativePath;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::error::GeneratorError;
+use crate::path::first_value_for_path;
 use handlebars::Handlebars;
 use std::fs::File;
 use std::io::Write;
@@ -20,6 +22,7 @@ type Result<T> = std::result::Result<T, Error>;
 #[serde(rename_all = "camelCase")]
 struct RssProcessorConfig {
     site: Site,
+    pages: Vec<Page>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -34,6 +37,21 @@ struct Site {
     pub update_base: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct Page {
+    pub published: Option<String>,
+    pub updated: Option<String>,
+    pub having: Having,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct Having {
+    pub path: String,
+    pub value: Option<Value>,
+}
+
 impl Default for Site {
     fn default() -> Self {
         Site {
@@ -44,6 +62,19 @@ impl Default for Site {
             update_frequency: 1,
             update_base: None,
         }
+    }
+}
+
+impl Having {
+    /// Check if the "Having" matches the provided context.
+    pub fn matches(&self, context: &Value) -> Result<bool> {
+        Ok(
+            match (&self.value, first_value_for_path(context, &self.path)?) {
+                (Some(v1), Some(v2)) => v1.eq(v2),
+                (None, Some(_)) => true,
+                (_, None) => false,
+            },
+        )
     }
 }
 
@@ -156,6 +187,57 @@ pub struct RssContext<'a, W: Write> {
     generator_config: &'a GeneratorConfig,
 }
 
+fn fetch_timestamp(
+    page_path: &RelativePath,
+    context: &Value,
+    path: &str,
+) -> Result<Option<DateTime<Utc>>> {
+    let x = first_value_for_path(context, path)?
+        .and_then(|s| s.as_str())
+        .map(|s| DateTime::parse_from_rfc3339(s))
+        .transpose()?
+        .map(|d| d.with_timezone(&Utc));
+
+    Ok(x)
+}
+
+impl<'a, W: Write> RssContext<'a, W> {
+    fn matches(
+        &self,
+        context: &Value,
+        path: &RelativePath,
+    ) -> Result<Option<(Option<DateTime<Utc>>, Option<DateTime<Utc>>)>> {
+        for p in &self.config.pages {
+            if p.having.matches(context)? {
+                let published = p
+                    .published
+                    .as_ref()
+                    .map(|s| fetch_timestamp(path, context, &s))
+                    .transpose()?;
+
+                let published: Option<DateTime<Utc>> = published.ok_or_else(|| {
+                    GeneratorError::Error(format!(
+                        "Missing value '{}' for RSS page {}",
+                        p.published.as_ref().unwrap(),
+                        path
+                    ))
+                })?;
+
+                let updated = p
+                    .updated
+                    .as_ref()
+                    .map(|s| fetch_timestamp(path, context, &s))
+                    .transpose()?
+                    .unwrap_or(published);
+
+                return Ok(Some((published, updated)));
+            }
+        }
+
+        Ok(None)
+    }
+}
+
 impl<'a, W: Write> ProcessorContext for RssContext<'a, W> {
     fn file_created(
         &mut self,
@@ -163,6 +245,13 @@ impl<'a, W: Write> ProcessorContext for RssContext<'a, W> {
         context: &Value,
         handlebars: &mut Handlebars,
     ) -> Result<()> {
+        let m = self.matches(context, path)?;
+        if m.is_none() {
+            return Ok(());
+        }
+
+        let m = m.unwrap();
+
         // item
 
         self.writer
@@ -179,6 +268,13 @@ impl<'a, W: Write> ProcessorContext for RssContext<'a, W> {
 
         self.writer.write(b"\t")?;
         xml_write_element(&mut self.writer, "guid", &url)?;
+
+        // pubDate
+
+        if let Some(published) = m.0 {
+            self.writer.write(b"\t")?;
+            xml_write_element(&mut self.writer, "pubDate", published.to_rfc2822())?;
+        }
 
         // /item
 
