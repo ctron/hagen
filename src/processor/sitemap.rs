@@ -36,8 +36,8 @@ pub struct SitemapProcessor;
 impl Processor for SitemapProcessor {
     fn create<'a, 'reg>(
         &self,
-        handlebars: &'reg mut Handlebars,
-        data: &Value,
+        _: &'reg mut Handlebars,
+        _: &Value,
         generator_config: &'a GeneratorConfig,
         processor_config: Value,
     ) -> Result<Box<dyn ProcessorContext + 'a>> {
@@ -144,7 +144,7 @@ impl<'a, W: Write> ProcessorContext for SitemapContext<'a, W> {
         &mut self,
         path: &RelativePath,
         context: &Value,
-        handlebars: &mut Handlebars,
+        _: &mut Handlebars,
     ) -> Result<()> {
         let url = crate::helper::url::full_url_for(&self.generator_config.basename, path.as_str())?;
         let last_mod = self.last_mod_from(context)?;
@@ -179,7 +179,7 @@ impl<'a, W: Write> ProcessorContext for SitemapContext<'a, W> {
         Ok(())
     }
 
-    fn complete(&mut self, handlebars: &mut Handlebars) -> Result<()> {
+    fn complete(&mut self, _: &mut Handlebars) -> Result<()> {
         self.writer
             .write_event(Event::End(BytesEnd::borrowed(b"urlset")))?;
 

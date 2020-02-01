@@ -2,7 +2,7 @@ use crate::generator::GeneratorConfig;
 use crate::helper::url::full_url_for;
 use crate::processor::{xml_write_element, Processor, ProcessorContext};
 use chrono::{DateTime, Utc};
-use failure::Error;
+use failure::{AsFail, Error, Fail};
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, Event};
 use quick_xml::Writer;
 use relative_path::RelativePath;
@@ -23,6 +23,7 @@ type Result<T> = std::result::Result<T, Error>;
 struct RssProcessorConfig {
     site: Site,
     pages: Vec<Page>,
+    defaults: Data,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -37,12 +38,31 @@ struct Site {
     pub update_base: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+#[serde(default)]
+struct Data {
+    pub title: Option<String>,
+    pub published: Option<String>,
+    pub updated: Option<String>,
+    pub description: Option<String>,
+    pub author: Author,
+    pub content: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+#[serde(default)]
+struct Author {
+    pub name: Option<String>,
+    pub email: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Page {
-    pub published: Option<String>,
-    pub updated: Option<String>,
-    pub title: String,
+    #[serde(default)]
+    pub data: Data,
     pub having: Having,
 }
 
@@ -52,6 +72,8 @@ struct Having {
     pub path: String,
     pub value: Option<Value>,
 }
+
+// implementations
 
 impl Default for Site {
     fn default() -> Self {
@@ -188,62 +210,48 @@ pub struct RssContext<'a, W: Write> {
     generator_config: &'a GeneratorConfig,
 }
 
-fn fetch_timestamp(
-    page_path: &RelativePath,
-    context: &Value,
-    path: &str,
-) -> Result<Option<DateTime<Utc>>> {
-    let x = first_value_for_path(context, path)?
-        .and_then(|s| s.as_str())
-        .map(|s| DateTime::parse_from_rfc3339(s))
-        .transpose()?
-        .map(|d| d.with_timezone(&Utc));
-
-    Ok(x)
-}
-
 impl<'a, W: Write> RssContext<'a, W> {
-    fn matches(
-        &self,
-        context: &Value,
-        path: &RelativePath,
-    ) -> Result<Option<(String, Option<DateTime<Utc>>, Option<DateTime<Utc>>)>> {
+    fn matches<'b>(&'b self, context: &Value) -> Result<Option<&'b Page>> {
         for p in &self.config.pages {
             if p.having.matches(context)? {
-                let published = p
-                    .published
-                    .as_ref()
-                    .map(|s| fetch_timestamp(path, context, &s))
-                    .transpose()?;
-
-                let published: Option<DateTime<Utc>> = published.ok_or_else(|| {
-                    GeneratorError::Error(format!(
-                        "Missing value '{}' for RSS page {}",
-                        p.published.as_ref().unwrap(),
-                        path
-                    ))
-                })?;
-
-                let updated = p
-                    .updated
-                    .as_ref()
-                    .map(|s| fetch_timestamp(path, context, &s))
-                    .transpose()?
-                    .unwrap_or(published);
-
-                let l = first_value_for_path(context, &p.title)?.and_then(|s| s.as_str());
-                let l = l.ok_or_else(|| {
-                    GeneratorError::Error(format!(
-                        "Missing value '{}' for RSS page {}",
-                        p.title, path
-                    ))
-                })?;
-
-                return Ok(Some((l.to_string(), published, updated)));
+                return Ok(Some(p));
             }
         }
 
         Ok(None)
+    }
+
+    fn eval_value<F>(
+        &self,
+        handlebars: &Handlebars,
+        context: &Value,
+        page_data: &Data,
+        f: F,
+    ) -> Result<Option<String>>
+    where
+        F: Fn(&Data) -> &Option<String>,
+    {
+        let page = f(page_data);
+        let global = f(&self.config.defaults);
+
+        let expr = match (page, global) {
+            (Some(x), _) => Some(x),
+            (None, Some(x)) => Some(x),
+            (_, _) => None,
+        };
+
+        if expr.is_none() {
+            return Ok(None);
+        }
+
+        let expr = expr.unwrap();
+
+        let result = handlebars.render_template(&expr, context)?;
+        if result.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(result))
+        }
     }
 }
 
@@ -254,12 +262,32 @@ impl<'a, W: Write> ProcessorContext for RssContext<'a, W> {
         context: &Value,
         handlebars: &mut Handlebars,
     ) -> Result<()> {
-        let m = self.matches(context, path)?;
+        let m = self.matches(context)?;
         if m.is_none() {
             return Ok(());
         }
 
         let m = m.unwrap();
+
+        // gather information
+
+        let title = self
+            .eval_value(handlebars, context, &m.data, |d| &d.author.name)?
+            .ok_or_else(|| {
+                GeneratorError::Error(format!(
+                    "Missing value for 'title' for RSS in page '{:?}'",
+                    path
+                ))
+            })?;
+        let author_name = self.eval_value(handlebars, context, &m.data, |d| &d.author.name)?;
+        let author_email = self.eval_value(handlebars, context, &m.data, |d| &d.author.email)?;
+        let pub_date = self
+            .eval_value(handlebars, context, &m.data, |d| &d.published)?
+            .map(|s| DateTime::parse_from_rfc3339(&s))
+            .transpose()?
+            .map(|d| d.with_timezone(&Utc));
+        let description = self.eval_value(handlebars, context, &m.data, |d| &d.description)?;
+        let content = self.eval_value(handlebars, context, &m.data, |d| &d.content)?;
 
         // item
 
@@ -278,14 +306,44 @@ impl<'a, W: Write> ProcessorContext for RssContext<'a, W> {
         self.writer.write(b"\t")?;
         xml_write_element(&mut self.writer, "guid", &url)?;
 
-        // pubDate
+        // title
 
         self.writer.write(b"\t")?;
-        xml_write_element(&mut self.writer, "title", m.0)?;
+        xml_write_element(&mut self.writer, "title", title)?;
 
-        if let Some(published) = m.1 {
+        // description
+
+        if let Some(description) = description {
             self.writer.write(b"\t")?;
-            xml_write_element(&mut self.writer, "pubDate", published.to_rfc2822())?;
+            xml_write_element(&mut self.writer, "description", description)?;
+        }
+
+        // content
+
+        if let Some(content) = content {
+            self.writer.write(b"\t")?;
+            xml_write_element(&mut self.writer, "content", content)?;
+        }
+
+        // author
+
+        if let Some(author_email) = author_email {
+            self.writer.write(b"\t")?;
+            xml_write_element(&mut self.writer, "author", author_email)?;
+        }
+
+        // dc:creator
+
+        if let Some(author_name) = author_name {
+            self.writer.write(b"\t")?;
+            xml_write_element(&mut self.writer, "dc:creator", author_name)?;
+        }
+
+        // pubDate
+
+        if let Some(pub_date) = pub_date {
+            self.writer.write(b"\t")?;
+            xml_write_element(&mut self.writer, "pubDate", pub_date.to_rfc2822())?;
         }
 
         // /item
@@ -297,7 +355,7 @@ impl<'a, W: Write> ProcessorContext for RssContext<'a, W> {
         Ok(())
     }
 
-    fn complete(&mut self, handlebars: &mut Handlebars) -> Result<()> {
+    fn complete(&mut self, _: &mut Handlebars) -> Result<()> {
         self.writer
             .write_event(Event::End(BytesEnd::borrowed(b"channel")))?;
         self.writer.write(b"\n")?;
