@@ -101,6 +101,8 @@ jobs:
         with:
           name: binary
 
+      - run: mv binary hagen
+
       - run: find
 
       - name: Build content
