@@ -1,0 +1,15 @@
+<h1>
+    {{#with context.page.frontMatter.title }}
+        {{ this }}
+    {{else}}
+        {{ compact.site.title }}
+    {{/with}}
+</h1>
+
+{{#if context.page.frontMatter.lead}}
+    <p class="lead">{{ context.page.frontMatter.lead }}</p>
+{{else}}
+    {{#if context.page.frontMatter.description}}
+        <p class="lead">{{ context.page.frontMatter.description }}</p>
+    {{/if}}
+{{/if}}

@@ -1,0 +1,13 @@
+title: Hagen
+language: en-US
+description: Generating static websites in Rust.
+
+menu:
+  - label: Home
+    url: /
+  - label: About
+    url: /about/
+
+footer:
+  - label: Git Hub
+    url: https://github.com/ctron/hagen

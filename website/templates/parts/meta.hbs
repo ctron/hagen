@@ -1,0 +1,21 @@
+
+<link rel="canonical" href="{{ absolute_url "" }}" />
+
+<meta name="author" content="Jens Reimann" />
+<meta name="contact" content="ctron@dentrassi.de" />
+
+<meta property="og:locale" content="en_US" />
+<meta property="og:url" content="{{ absolute_url "" }}" />
+<meta property="og:site_name" content="{{ compact.site.title }}" />
+<meta property="og:updated_time" content="{{~> parts/meta/update_timestamp ~}}" />
+
+<meta property="article:published_time" content="{{~> parts/meta/publish_timestamp ~}}" />
+<meta property="article:modified_time" content="{{~> parts/meta/update_timestamp ~}}" />
+
+<meta name="twitter:card" content="summary" />
+{{~#with context.page.frontMatter.description}}
+    <meta name="twitter:description" content="{{this}}" />
+{{~/with}}
+<meta name="twitter:title" content="{{~> title ~}}" />
+<meta name="twitter:site" content="@ctron" />
+<meta name="twitter:creator" content="@ctron" />

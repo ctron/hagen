@@ -1,0 +1,26 @@
+site:
+    basename: https://ctron.github.io/hagen
+
+rules:
+  - selectorType: layout
+    template: "{{ frontMatter.layout }}"
+    outputPattern: "{{ metadata.parent }}/{{ metadata.name }}.html"
+    context:
+      page: $
+      content: $.content
+      timestamp: $.frontMatter.timestamp
+
+  - selectorType: type
+    selector: txt
+    outputPattern: "{{ metadata.parent }}/{{ metadata.name }}.txt"
+
+assets:
+  - dir: assets
+    to: assets
+  - dir: build/assets
+    to: assets
+
+processors:
+  sitemap:
+    publishedPath: $.context.page.frontMatter.timestamp.published
+    updatedPath: $.context.page.frontMatter.timestamp.updated

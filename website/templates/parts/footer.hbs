@@ -1,0 +1,11 @@
+
+<div class="container text-muted">
+    <p class="float-right">
+        This site was generated with Hagen.
+    </p>
+    <p>&copy; 2019-{{timestamp "%Y"}} Jens Reimann
+        {{#each compact.site.footer as |item|}}
+            • <a href="{{relative_url item.url}}">{{item.label}}</a>
+        {{/each}}
+    </p>
+</div>

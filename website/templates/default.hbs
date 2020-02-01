@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="{{compact.site.language}}">
+<head>
+    <meta charset="utf-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="stylesheet" href="{{ relative_url "/assets/bootstrap/bootstrap.min.css" }}">
+    <link rel="stylesheet" href="{{ relative_url "/assets/custom/styles.css" }}">
+
+    {{~> parts/meta}}
+
+    <title>{{~> parts/title ~}}</title>
+</head>
+
+<body>
+
+<header class="mb-5">
+    {{~> parts/header}}
+</header>
+
+<main id="main" role="main">
+    {{~> parts/main}}
+</main>
+
+<footer class="mt-5 py-5">
+    {{~> parts/footer}}
+</footer>
+
+<script src="{{ relative_url "/assets/popper.min.js" }}"></script>
+<script src="{{ relative_url "/assets/jquery.min.js" }}"></script>
+<script src="{{ relative_url "/assets/bootstrap/bootstrap.min.js" }}"></script>
+
+</body>
+</html>
