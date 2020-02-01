@@ -101,13 +101,12 @@ jobs:
         with:
           name: binary
 
-      - run: mv binary hagen
-      - run: chmod a+x hagen
+      - run: chmod a+x binary
+      - run: mv binary /usr/local/bin/hagen
 
       - name: Build content
         run: |
           cd master/website
-          export PATH="$PATH:$GITHUB_WORKSPACE"
           make build
 
       - name: Update content
