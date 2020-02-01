@@ -2,7 +2,7 @@ use crate::generator::GeneratorConfig;
 use crate::helper::url::full_url_for;
 use crate::processor::{xml_write_element, Processor, ProcessorContext};
 use chrono::{DateTime, Utc};
-use failure::{AsFail, Error, Fail};
+use failure::Error;
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, Event};
 use quick_xml::Writer;
 use relative_path::RelativePath;
@@ -44,18 +44,10 @@ struct Site {
 struct Data {
     pub title: Option<String>,
     pub published: Option<String>,
-    pub updated: Option<String>,
+    pub creator: Option<String>,
+    pub author: Option<String>,
     pub description: Option<String>,
-    pub author: Author,
     pub content: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
-#[serde(rename_all = "camelCase")]
-#[serde(default)]
-struct Author {
-    pub name: Option<String>,
-    pub email: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -272,15 +264,15 @@ impl<'a, W: Write> ProcessorContext for RssContext<'a, W> {
         // gather information
 
         let title = self
-            .eval_value(handlebars, context, &m.data, |d| &d.author.name)?
+            .eval_value(handlebars, context, &m.data, |d| &d.title)?
             .ok_or_else(|| {
                 GeneratorError::Error(format!(
                     "Missing value for 'title' for RSS in page '{:?}'",
                     path
                 ))
             })?;
-        let author_name = self.eval_value(handlebars, context, &m.data, |d| &d.author.name)?;
-        let author_email = self.eval_value(handlebars, context, &m.data, |d| &d.author.email)?;
+        let creator = self.eval_value(handlebars, context, &m.data, |d| &d.creator)?;
+        let author = self.eval_value(handlebars, context, &m.data, |d| &d.author)?;
         let pub_date = self
             .eval_value(handlebars, context, &m.data, |d| &d.published)?
             .map(|s| DateTime::parse_from_rfc3339(&s))
@@ -322,21 +314,21 @@ impl<'a, W: Write> ProcessorContext for RssContext<'a, W> {
 
         if let Some(content) = content {
             self.writer.write(b"\t")?;
-            xml_write_element(&mut self.writer, "content", content)?;
+            xml_write_element(&mut self.writer, "content:encoded", content)?;
         }
 
         // author
 
-        if let Some(author_email) = author_email {
+        if let Some(author) = author {
             self.writer.write(b"\t")?;
-            xml_write_element(&mut self.writer, "author", author_email)?;
+            xml_write_element(&mut self.writer, "author", author)?;
         }
 
         // dc:creator
 
-        if let Some(author_name) = author_name {
+        if let Some(creator) = creator {
             self.writer.write(b"\t")?;
-            xml_write_element(&mut self.writer, "dc:creator", author_name)?;
+            xml_write_element(&mut self.writer, "dc:creator", creator)?;
         }
 
         // pubDate
