@@ -116,7 +116,7 @@ jobs:
         run: |
           cd "$GITHUB_WORKSPACE/pages"
           rm * -Rf
-          cp -a "$GITHUB_WORKSPACE/master/website/output/*" .
+          cp -a "$GITHUB_WORKSPACE"/master/website/output/* .
           git add -A
           if ! git diff --cached --exit-code; then
             echo "Changes have been detected, publishing to repo."
