@@ -31,14 +31,3 @@ jobs:
 
     - name: Run tests
       run: cargo test --verbose
-
-    - run: mkdir "$HOME/website"
-
-    - name: Generate page
-      run: cd website && ../target/debug/hagen && cp -av . "$HOME/website"
-
-    - name: Switch to gh-pages
-      run: git checkout gh-pages
-
-    - name: Switch back
-      run: git checkout ${GITHUB_SHA}
