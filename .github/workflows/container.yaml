@@ -57,3 +57,52 @@ jobs:
 
       - name: Push to github container repository
         run: docker push docker.pkg.github.com/${{ github.repository }}/hagen:latest
+
+  website:
+
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+
+      - name: Checkout source
+        uses: actions/checkout@v2
+        with:
+          path: master
+
+      - name: Checkout current pages
+        uses: actions/checkout@v2
+        with:
+          ref: gh-pages
+          path: pages
+
+      - run: git config user.name "GitHub Actions" && git config user.email "actions@users.noreply.github.com"
+
+      - name: Download binary
+        uses: actions/upload-artifact@v1
+        with:
+          name: binary
+          path: hagen
+
+      - run: find
+
+      - name: Build content
+        run: |
+          cd master/website
+          export PATH="$PATH:$GITHUB_WORKSPACE"
+          make build
+
+      - name: Update content
+        run: |
+          cd "$GITHUB_WORKSPACE/pages"
+          rm * -Rf
+          cp -a "$GITHUB_WORKSPACE/master/website/output/*" .
+          git add -A
+          if ! git diff --cached --exit-code; then
+            echo "Changes have been detected, publishing to repo."
+            git commit -m "Build ${GITHUB_WORKFLOW} for ${GITHUB_SHA}"
+            git log --graph --abbrev-commit --date=relative -n 5
+            git push origin
+          else
+            echo "No changes have been detected since last build, nothing to publish"
+          fi
