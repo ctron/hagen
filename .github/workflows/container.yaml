@@ -131,5 +131,5 @@ jobs:
         run: |
           curl -L -X POST \
           -H "Content-Type: application/json" \
-          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Authorization: token ${{ secrets.GH_PAGES_TOKEN }}" \
           "https://api.github.com/repos/${{ github.repository }}/pages/builds"
