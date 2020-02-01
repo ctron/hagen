@@ -101,6 +101,9 @@ jobs:
         with:
           name: binary
 
+      - run: find /home/runner/work/hagen/hagen/binary
+      - run: file /home/runner/work/hagen/hagen/binary
+      - run: ldd /home/runner/work/hagen/hagen/binary
       - run: chmod a+x binary
       - run: sudo mv binary /usr/local/bin/hagen
 
