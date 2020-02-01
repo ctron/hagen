@@ -29,28 +29,11 @@ jobs:
     - name: Build
       run: cargo build --verbose
 
-    - name: Store artifact
-      uses: actions/upload-artifact@v1
-      with:
-        name: binary
-        path: target/debug/hagen
-
-  test:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v1
     - name: Run tests
       run: cargo test --verbose
 
-  site:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - uses: actions/download-artifact@v1
-        with:
-          name: binary
-          path: hagen
+    - uses: actions/download-artifact@v1
+      with:
+        name: binary
 
-      - run: cd website && ../hagen
+    - run: cd website && ../target/debug/hagen
