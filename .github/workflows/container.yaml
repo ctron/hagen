@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v1
 
       - name: Download binary
-        uses: actions/upload-artifact@v1
+        uses: actions/download-artifact@v1
         with:
           name: binary
 
@@ -97,7 +97,7 @@ jobs:
           git config user.name "GitHub Actions" && git config user.email "actions@users.noreply.github.com"
 
       - name: Download binary
-        uses: actions/upload-artifact@v1
+        uses: actions/download-artifact@v1
         with:
           name: binary
 
