@@ -104,6 +104,9 @@ jobs:
       - run: chmod a+x binary
       - run: sudo mv binary /usr/local/bin/hagen
 
+      - run: env
+      - run: which hagen
+
       - name: Build content
         run: |
           cd master/website
