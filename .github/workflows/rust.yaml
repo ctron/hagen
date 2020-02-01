@@ -32,8 +32,4 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
 
-    - uses: actions/download-artifact@v1
-      with:
-        name: binary
-
     - run: cd website && ../target/debug/hagen
