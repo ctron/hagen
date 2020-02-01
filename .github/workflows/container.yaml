@@ -39,6 +39,14 @@ jobs:
           name: binary
           path: target/release/hagen
 
+  container:
+
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v1
+
       - name: Build the container image
         run: |
           docker build . --file .github/workflows/Dockerfile \
@@ -51,12 +59,13 @@ jobs:
       - name: Push to quay.io
         run: docker push quay.io/ctron/hagen:latest
 
-      # Unfortunately the GitHub docker registry requires a sign-in even for public repositories
+      # Unfortunately the GitHub docker registry requires a sign-in, even for public repositories
       - name: Login to github container repository
         run: docker login -u ctron -p ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com
 
       - name: Push to github container repository
         run: docker push docker.pkg.github.com/${{ github.repository }}/hagen:latest
+
 
   website:
 

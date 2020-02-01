@@ -4,6 +4,6 @@ RUN mkdir /homepage
 VOLUME /homepage
 WORKDIR /homepage
 
-ADD target/release/hagen /usr/local/bin
+ADD hagen /usr/local/bin
 
 CMD /usr/local/bin/hagen
