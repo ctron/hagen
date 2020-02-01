@@ -85,11 +85,41 @@ where
     S2: AsRef<str>,
     W: Write,
 {
+    xml_write_element_raw(
+        writer,
+        name,
+        Event::Text(BytesText::from_plain_str(value.as_ref())),
+    )
+}
+
+#[allow(dead_code)]
+pub fn xml_write_element_cdata<'a, S1, S2, W>(
+    writer: &mut Writer<W>,
+    name: S1,
+    value: S2,
+) -> Result<()>
+where
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+    W: Write,
+{
+    xml_write_element_raw(
+        writer,
+        name,
+        Event::CData(BytesText::from_plain_str(value.as_ref())),
+    )
+}
+
+pub fn xml_write_element_raw<S1, W>(writer: &mut Writer<W>, name: S1, value: Event) -> Result<()>
+where
+    S1: AsRef<str>,
+    W: Write,
+{
     writer.write_event(Event::Start(BytesStart::borrowed_name(
         name.as_ref().as_bytes(),
     )))?;
 
-    writer.write_event(Event::Text(BytesText::from_plain_str(value.as_ref())))?;
+    writer.write_event(value)?;
 
     writer.write_event(Event::End(BytesEnd::borrowed(name.as_ref().as_bytes())))?;
 

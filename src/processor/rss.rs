@@ -155,7 +155,7 @@ impl Processor for RssProcessor {
         // last build date
 
         let now = Utc::now();
-        xml_write_element(&mut writer, "lastBuildDate", now.to_rfc2822().to_string())?;
+        xml_write_element(&mut writer, "lastBuildDate", now.to_rfc2822())?;
 
         // generator
 
@@ -203,7 +203,7 @@ pub struct RssContext<'a, W: Write> {
 }
 
 impl<'a, W: Write> RssContext<'a, W> {
-    fn matches<'b>(&'b self, context: &Value) -> Result<Option<&'b Page>> {
+    fn matches(&self, context: &Value) -> Result<Option<&Page>> {
         for p in &self.config.pages {
             if p.having.matches(context)? {
                 return Ok(Some(p));
