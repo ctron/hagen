@@ -39,3 +39,6 @@ jobs:
 
     - name: Switch to gh-pages
       run: git checkout gh-pages
+
+    - name: Switch back
+      run: git checkout ${GITHUB_SHA}
