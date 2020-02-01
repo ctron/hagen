@@ -102,7 +102,7 @@ jobs:
           name: binary
 
       - run: chmod a+x binary
-      - run: mv binary /usr/local/bin/hagen
+      - run: sudo mv binary /usr/local/bin/hagen
 
       - name: Build content
         run: |
