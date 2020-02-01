@@ -85,7 +85,9 @@ jobs:
           ref: gh-pages
           path: pages
 
-      - run: git config user.name "GitHub Actions" && git config user.email "actions@users.noreply.github.com"
+      - run: |
+          cd "$GITHUB_WORKSPACE/pages"
+          git config user.name "GitHub Actions" && git config user.email "actions@users.noreply.github.com"
 
       - name: Download binary
         uses: actions/upload-artifact@v1
