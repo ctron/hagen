@@ -4,6 +4,6 @@ RUN mkdir /homepage
 VOLUME /homepage
 WORKDIR /homepage
 
-ADD hagen /usr/local/bin
+ADD binary/hagen /usr/local/bin
 
 CMD /usr/local/bin/hagen

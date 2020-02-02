@@ -52,7 +52,7 @@ jobs:
         with:
           name: binary
 
-      - run: mv binary hagen
+      - run: chmod a+x binary/hagen
 
       - name: Build the container image
         run: |
