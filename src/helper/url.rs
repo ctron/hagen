@@ -52,22 +52,27 @@ fn full_url<'reg: 'rc, 'rc>(
     h: &Helper<'reg, 'rc>,
     output: &generator::Output,
 ) -> Result<url::Url, RenderError> {
-    let url = h
-        .param(0)
+    let url = url_param(&h)?;
+    full_url_from(&url, output)
+}
+
+fn url_param(h: &Helper) -> Result<String, RenderError> {
+    Ok(h.param(0)
         .ok_or(RenderError::new(format!(
             "Missing URL parameter for {}",
             h.name()
         )))?
         .value()
         .as_str()
-        .ok_or(RenderError::new("Wrong value type of URL. Must be string."))?;
-
-    full_url_from(url, output)
+        .ok_or(RenderError::new("Wrong value type of URL. Must be string."))?
+        .into())
 }
 
 pub struct AbsoluteUrlHelper {
     pub context: Arc<RwLock<Option<GeneratorContext>>>,
 }
+
+use log::info;
 
 impl HelperDef for AbsoluteUrlHelper {
     fn call<'reg: 'rc, 'rc>(
@@ -105,6 +110,17 @@ impl HelperDef for RelativeUrlHelper {
         _: &mut RenderContext,
         out: &mut dyn Output,
     ) -> HelperResult {
+        // early check if this is a full url
+
+        let url = url_param(h)?;
+        info!("Url: {:?}", url);
+        if let Ok(url) = Url::parse(&url) {
+            out.write(url.as_str())?;
+            return Ok(());
+        }
+
+        // otherwise build up from relative parts
+
         let context = self.context.read();
         let context = context
             .as_ref()
@@ -174,7 +190,8 @@ impl HelperDef for ActiveHelper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::generator::Output;
+    use crate::generator::{GeneratorConfig, Output};
+    use serde_json::Map;
     use std::str::FromStr;
 
     fn test_full_url(site_url: &str, path: &str, url: &str, expected: &str) {
@@ -217,5 +234,59 @@ mod tests {
             "/",
             "http://localhost:8080/site/",
         );
+    }
+
+    fn setup(h: &mut Handlebars) -> Result<(), Error> {
+        let context_provider = Arc::new(RwLock::new(None));
+        h.register_helper(
+            "relative_url",
+            Box::new(RelativeUrlHelper {
+                context: context_provider.clone(),
+            }),
+        );
+
+        let config = GeneratorConfig {
+            basename: Url::parse("http://localhost/base/")?,
+            root: "/tmp".into(),
+            output: "/tmp/output".into(),
+        };
+
+        let output = Output::new(
+            config.basename.to_string(),
+            "/foo/bar",
+            Option::None::<String>,
+        );
+        let ctx = GeneratorContext::new(&config, &output);
+        *context_provider.write().unwrap() = Some(ctx);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_relative_url_1() -> Result<(), Error> {
+        let data = Map::new();
+        let mut h = Handlebars::new();
+
+        setup(&mut h)?;
+
+        assert_eq!(
+            h.render_template(r#"{{ relative_url "https://foo.bar/baz" }}"#, &data)?,
+            "https://foo.bar/baz",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_relative_url_2() -> Result<(), Error> {
+        let data = Map::new();
+        let mut h = Handlebars::new();
+
+        setup(&mut h)?;
+
+        assert_eq!(
+            h.render_template(r#"{{ relative_url "/baz" }}"#, &data)?,
+            "/base/baz",
+        );
+        Ok(())
     }
 }
