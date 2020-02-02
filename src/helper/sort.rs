@@ -5,7 +5,7 @@ use handlebars::{
 };
 use serde_json::{Map, Value};
 
-use log::debug;
+use log::trace;
 
 use handlebars::to_json;
 use serde_json::value::Value as Json;
@@ -84,7 +84,7 @@ impl HelperDef for SortedHelper {
 
                 rc.push_block(block_context);
 
-                debug!("each value {:?}", value.value());
+                trace!("each value {:?}", value.value());
                 let rendered = match (value.value().is_truthy(false), value.value()) {
                     (true, &Json::Array(ref list)) => {
                         let len = list.len();
@@ -245,7 +245,7 @@ fn sort(sort_path: &str, v1: &Value, v2: &Value) -> Ordering {
         (Some(s1), Some(s2)) => s1.cmp(s2),
     };
 
-    debug!("cmp - v1: {:?}, v2: {:?} => {:?}", v1, v2, result);
+    trace!("cmp - v1: {:?}, v2: {:?} => {:?}", v1, v2, result);
 
     result
 }
