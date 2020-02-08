@@ -30,12 +30,12 @@ use crate::processor::{Processor, ProcessorSession};
 use crate::helper::sort::SortedHelper;
 use crate::processor::rss::RssProcessor;
 use crate::processor::sitemap::SitemapProcessor;
-use clap::Clap;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::BTreeMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
+use structopt::StructOpt;
 use url::Url;
 
 lazy_static! {
@@ -68,19 +68,19 @@ impl Output {
     }
 }
 
-#[derive(Clone, Clap)]
-#[clap(version = "0.1.0", author = "Jens Reimann")]
+#[derive(Clone, StructOpt)]
+#[structopt(name = "hagen", author = "Jens Reimann")]
 pub struct Options {
     /// Override the basename of the site
-    #[clap(short = "b", long = "base")]
+    #[structopt(short = "b", long = "base")]
     basename: Option<String>,
 
     /// The root of the site. Must contain the file "hagen.yaml" and the "content" directory.
-    #[clap(short = "r", long = "root")]
+    #[structopt(short = "r", long = "root")]
     root: Option<String>,
 
     /// Dump the content files as well.
-    #[clap(short = "D", long = "dump")]
+    #[structopt(short = "D", long = "dump")]
     dump: bool,
 }
 
