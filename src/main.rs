@@ -12,6 +12,7 @@ use generator::Generator;
 use crate::generator::Options;
 use env_logger::Env;
 use failure::{Error, Fail};
+use structopt::StructOpt;
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -24,7 +25,7 @@ fn hag_exit(err: failure::Error) -> ! {
 }
 
 fn hag_run() -> Result<()> {
-    let opts = Options::parse();
+    let opts = Options::from_args();
 
     let mut generator = Generator::new(opts);
     Ok(generator.run()?)
