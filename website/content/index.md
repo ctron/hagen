@@ -9,7 +9,7 @@ description: |
 
 ## Welcome to Hagen
 
-Hagen is a static website generator, written the [Rust language](https://www.rust-lang.org/). It's goal is
+Hagen is a static website generator, written in the [Rust language](https://www.rust-lang.org/). It's goal is
 to be flexible and extensible, making it possible to generate all kinds of web sites, not only blogs. 
 
 ## Installing
