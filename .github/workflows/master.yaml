@@ -1,4 +1,4 @@
-name: Container Image CI
+name: Master CI
 
 on:
   push:
