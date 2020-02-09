@@ -1,89 +1,31 @@
-# A homepage generator written in Rust
+# Hagen
 
 "Hagen" is a generator for static homepages, written in Rust.
 
-## Minimal example setup
+## Example website
 
-### `hagen.yaml`
+You can find an example web site in the folder [/website](website). It contains
+the source code to site published on [https://ctron.github.io/hagen](https://ctron.github.io/hagen).
+The goal of the website is to showcase and document the capabilities of Hagen.
+But I know, the documentation needs more work :-)
 
-~~~yaml
-rules:
-  - selectorType: layout
-    template: "{{ frontMatter.layout }}"
-    outputPattern: "{{ metadata.parent }}/{{ metadata.name }}.html"
+## Installing
 
-assets:
-  - dir: assets
-    to: assets
-~~~
+You can install Hagen with `cargo`:
 
-### `templates/default.hbs`
-~~~handlebars
-<!doctype html>
-<html>
-  <head>
-    <title>{{compact.site.info.title}}</title>
-  </head>
-  <body>
-    <header>
-      <h1>{{context.pageTitle}}</h1>
-    </header>
-    <main>
-      {{ expand ( markdownify context.content) }}
-    </main>
-    <footer>
-      Copyright 2019-{{time "%Y"}} ACME Inc. All rights reserved.
-    </footer>
-  </body>
-</html>
-~~~
+    cargo install hagen
 
-### `content/site.yaml`
-~~~yaml
-info:
-  title: Example site
-  clain: Just testing.
-~~~
+## Container image
 
-### `content/index.md`
-~~~markdown
----
-layout: default
-pageTitle: Page Title
----
-## Foo Bar
+There is also a container image, which you can run with docker:
 
-**Welcome** to my test.
-~~~
+    docker run quay.io/ctron/hagen
 
-## Variables
+For example:
 
-Different contexts have different variables. All values are JSON based.
+    docker run -v $(pwd)/website:/homepage --rm -ti quay.io/ctron/hagen
 
-### Page
+## Running
 
-<dl>
-
-<dt><code>full</code></dt>
-<dd>The full content tree.</dd>
-
-<dt><code>compact</code></dt>
-<dd>The compacted content tree. Containing only content sections.</dd>
-
-<dt><code>context</code>
-<dd>The content of the point selected from the content tree.</dd>
-
-<dt><code>output</code></dt>
-<dd>The output information.
-
-<dl>
-<dt><code>path</code></dt>
-<dd>The path of the output page.</dd>
-<dt><code>site_url</code></dt>
-<dd>The base site URL.</dd>
-</dl>
-
-</dd>
-
-</dl>
-
+Calling `hagen` with `--help` will give you more information about the
+arguments.
