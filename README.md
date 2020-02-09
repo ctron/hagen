@@ -2,6 +2,8 @@
 
 "Hagen" is a generator for static homepages, written in Rust.
 
+For more information see: [https://ctron.github.io/hagen](https://ctron.github.io/hagen)
+
 ## Example website
 
 You can find an example web site in the folder [/website](website). It contains
