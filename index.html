@@ -85,8 +85,23 @@
         <h2>Welcome to Hagen</h2>
 <p>Hagen is a static website generator, written the <a href="https://www.rust-lang.org/">Rust language</a>. It's goal is
 to be flexible and extensible, making it possible to generate all kinds of web sites, not only blogs. </p>
-<p>Hagen can be run out of the box, there is no need to write code. The easiest way to run it is using the container:</p>
-<pre><code>docker run quay.io/ctron/hagen --rm -ti</code></pre>
+<h2>Installing</h2>
+<p>You can install Hagen using cargo:</p>
+<pre><code>cargo install hagen
+</code></pre>
+<h2>Container</h2>
+<p>Hagen can also be run directly using docker:</p>
+<pre><code>docker run -v $(pwd)/my-page:/homepage --rm -ti quay.io/ctron/hagen
+</code></pre>
+<h2>Live preview and asset processing</h2>
+<p>The current focus of Hagen is to generate homepages. Loading content, and providing
+an easy, yet flexible way to render pages.</p>
+<p>This is why there is no live preview, SCSS, or image processing. There are other
+tools out there, which can do the same job. For example the &quot;node-sass&quot; processor
+does a great job, processing the SCSS files. So why replicate all the effort?</p>
+<p>And with e.g. Python, you can quickly run a local web server.</p>
+<p>In the source code of this webpage, you will find a template setup, which makes
+use of NodeJS, Yarn, SCSS, and Python to get you started.</p>
 
     
 </div>
