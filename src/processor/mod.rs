@@ -1,4 +1,5 @@
 use crate::generator::GeneratorConfig;
+use crate::path::first_value_for_path;
 use failure::Error;
 use handlebars::Handlebars;
 use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
@@ -126,4 +127,26 @@ where
     writer.write(b"\n")?;
 
     Ok(())
+}
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct Having {
+    pub path: String,
+    pub value: Option<Value>,
+}
+
+impl Having {
+    /// Check if the "Having" matches the provided context.
+    pub fn matches(&self, context: &Value) -> Result<bool> {
+        Ok(
+            match (&self.value, first_value_for_path(context, &self.path)?) {
+                (Some(v1), Some(v2)) => v1.eq(v2),
+                (None, Some(_)) => true,
+                (_, None) => false,
+            },
+        )
+    }
 }

@@ -1,6 +1,6 @@
 use crate::generator::GeneratorConfig;
 use crate::helper::url::full_url_for;
-use crate::processor::{xml_write_element, Processor, ProcessorContext};
+use crate::processor::{xml_write_element, Having, Processor, ProcessorContext};
 use chrono::{DateTime, Utc};
 use failure::Error;
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, Event};
@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::error::GeneratorError;
-use crate::path::first_value_for_path;
 use handlebars::Handlebars;
 use std::fs::File;
 use std::io::Write;
@@ -58,13 +57,6 @@ struct Page {
     pub having: Having,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct Having {
-    pub path: String,
-    pub value: Option<Value>,
-}
-
 // implementations
 
 impl Default for Site {
@@ -77,19 +69,6 @@ impl Default for Site {
             update_frequency: 1,
             update_base: None,
         }
-    }
-}
-
-impl Having {
-    /// Check if the "Having" matches the provided context.
-    pub fn matches(&self, context: &Value) -> Result<bool> {
-        Ok(
-            match (&self.value, first_value_for_path(context, &self.path)?) {
-                (Some(v1), Some(v2)) => v1.eq(v2),
-                (None, Some(_)) => true,
-                (_, None) => false,
-            },
-        )
     }
 }
 

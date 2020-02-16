@@ -22,5 +22,13 @@ assets:
 
 processors:
   sitemap:
-    publishedPath: $.context.page.frontMatter.timestamp.published
-    updatedPath: $.context.page.frontMatter.timestamp.updated
+    filters:
+      - path: $.context.page
+    lastMod: |
+      {{#with context.page.frontMatter.timestamp.updated }}
+        {{this}}
+      {{else}}
+        {{#with context.page.frontMatter.timestamp.published }}
+          {{this}}
+        {{/with}}
+      {{/with}}

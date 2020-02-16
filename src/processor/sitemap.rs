@@ -1,4 +1,4 @@
-use crate::processor::{xml_write_element, Processor, ProcessorContext};
+use crate::processor::{xml_write_element, Having, Processor, ProcessorContext};
 
 use failure::Error;
 
@@ -10,7 +10,7 @@ use std::io::Write;
 use url::Url;
 
 use crate::generator::GeneratorConfig;
-use chrono::{DateTime, SecondsFormat, Utc};
+use chrono::{DateTime, Utc};
 use std::str::FromStr;
 use strum_macros::{AsRefStr, AsStaticStr, EnumString};
 
@@ -30,6 +30,8 @@ struct SitemapProcessorConfig {
     last_mod: Option<String>,
     change_frequency: Option<String>,
     priority: Option<String>,
+    #[serde(default)]
+    filters: Vec<Having>,
 }
 
 pub struct SitemapProcessor;
@@ -99,11 +101,7 @@ impl<'a, W: Write> SitemapContext<'a, W> {
         xml_write_element(&mut self.writer, "loc", &loc)?;
         if let Some(last_mod) = last_mod {
             self.writer.write(b"\t")?;
-            xml_write_element(
-                &mut self.writer,
-                "lastmod",
-                last_mod.to_rfc3339_opts(SecondsFormat::Secs, true),
-            )?;
+            xml_write_element(&mut self.writer, "lastmod", last_mod.to_rfc3339())?;
         }
         if let Some(change_freq) = change_freq {
             self.writer.write(b"\t")?;
@@ -142,6 +140,22 @@ impl<'a, W: Write> SitemapContext<'a, W> {
 
         Ok(last_mod)
     }
+
+    fn is_match(&self, context: &Value) -> Result<bool> {
+        if self.config.filters.is_empty() {
+            // no filters means we simply accept everything
+            return Ok(true);
+        }
+
+        for f in &self.config.filters {
+            if f.matches(context)? {
+                return Ok(true);
+            }
+        }
+
+        // nothing matched
+        Ok(false)
+    }
 }
 
 impl<'a, W: Write> ProcessorContext for SitemapContext<'a, W> {
@@ -151,6 +165,10 @@ impl<'a, W: Write> ProcessorContext for SitemapContext<'a, W> {
         context: &Value,
         handlebars: &mut Handlebars,
     ) -> Result<()> {
+        if !self.is_match(context)? {
+            return Ok(());
+        }
+
         let url = crate::helper::url::full_url_for(&self.generator_config.basename, path.as_str())?;
         let last_mod = self.last_mod_from(context, handlebars)?;
 
