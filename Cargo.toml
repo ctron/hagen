@@ -9,6 +9,7 @@ homepage = "https://ctron.github.io/hagen"
 repository = "https://github.com/ctron/hagen"
 keywords = ["homepage", "generator", "handlebars", "hugo", "jekyll"]
 categories = ["web-programming", "template-engine", "command-line-utilities"]
+readme = "README.md"
 
 [badges]
 
