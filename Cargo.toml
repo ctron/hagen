@@ -22,7 +22,6 @@ relative-path = "1"
 globset = "0.4"
 regex = "1"
 lazy_static = "1"
-#clap = { git = "https://github.com/clap-rs/clap.git" }
 structopt = "0.3"
 clap = "2.33"
 quick-xml = "0.17"
