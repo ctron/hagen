@@ -1,5 +1,5 @@
 use failure::{Error, Fail};
-use handlebars::{RenderError, TemplateFileError};
+use handlebars::{RenderError, TemplateFileError, TemplateRenderError};
 use jsonpath_lib::JsonPathError;
 use url::ParseError;
 
@@ -7,12 +7,16 @@ use url::ParseError;
 pub enum GeneratorError {
     #[fail(display = "Failed to process")]
     GenericError(#[cause] Error),
+    #[fail(display = "{}", _1)]
+    GenericDetailError(#[cause] Error, String),
     #[fail(display = "Failed to process")]
     JsonError(#[cause] serde_json::Error),
     #[fail(display = "Failed to process")]
     YamlError(#[cause] serde_yaml::Error),
     #[fail(display = "Failed to process")]
     TemplateError(#[cause] TemplateFileError),
+    #[fail(display = "Failed to process")]
+    TemplateRenderError(#[cause] TemplateRenderError),
     #[fail(display = "Failed to process")]
     IoError(#[cause] std::io::Error),
     #[fail(display = "{}", _0)]

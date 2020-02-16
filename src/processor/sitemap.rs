@@ -10,7 +10,7 @@ use std::io::Write;
 use url::Url;
 
 use crate::generator::GeneratorConfig;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, SecondsFormat, Utc};
 use std::str::FromStr;
 use strum_macros::{AsRefStr, AsStaticStr, EnumString};
 
@@ -27,8 +27,9 @@ type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct SitemapProcessorConfig {
-    published_path: String,
-    updated_path: String,
+    last_mod: Option<String>,
+    change_frequency: Option<String>,
+    priority: Option<String>,
 }
 
 pub struct SitemapProcessor;
@@ -101,7 +102,7 @@ impl<'a, W: Write> SitemapContext<'a, W> {
             xml_write_element(
                 &mut self.writer,
                 "lastmod",
-                last_mod.format("%Y-%m-%d").to_string(),
+                last_mod.to_rfc3339_opts(SecondsFormat::Secs, true),
             )?;
         }
         if let Some(change_freq) = change_freq {
@@ -119,21 +120,25 @@ impl<'a, W: Write> SitemapContext<'a, W> {
         Ok(())
     }
 
-    fn last_mod_from(&self, context: &Value) -> Result<Option<DateTime<Utc>>> {
-        let published = value_by_path(context, &self.config.published_path)?;
-        let updated = value_by_path(context, &self.config.updated_path)?;
+    fn last_mod_from(
+        &self,
+        context: &Value,
+        handlebars: &Handlebars,
+    ) -> Result<Option<DateTime<Utc>>> {
+        let last_mod = self
+            .config
+            .last_mod
+            .as_ref()
+            .map(|l| value_by_template(context, handlebars, l))
+            .transpose()?;
 
-        debug!("published: {:?}, updated: {:?}", published, updated);
+        debug!("last_mod: {:?}", last_mod);
 
-        let last_mod = match (published.as_slice(), updated.as_slice()) {
-            (_, [t]) => Some(t),
-            ([t], []) => Some(t),
-            _ => None,
-        }
-        .and_then(|t| t.as_str())
-        .map(|t| DateTime::parse_from_rfc3339(t))
-        .transpose()?
-        .map(|t| t.with_timezone(&Utc));
+        let last_mod = last_mod
+            .filter(|s| !s.is_empty())
+            .map(|t| DateTime::parse_from_rfc3339(&t))
+            .transpose()?
+            .map(|t| t.with_timezone(&Utc));
 
         Ok(last_mod)
     }
@@ -144,42 +149,57 @@ impl<'a, W: Write> ProcessorContext for SitemapContext<'a, W> {
         &mut self,
         path: &RelativePath,
         context: &Value,
-        _: &mut Handlebars,
+        handlebars: &mut Handlebars,
     ) -> Result<()> {
         let url = crate::helper::url::full_url_for(&self.generator_config.basename, path.as_str())?;
-        let last_mod = self.last_mod_from(context)?;
+        let last_mod = self.last_mod_from(context, handlebars)?;
 
         // change freq
 
-        let change_freq = value_by_path(
-            context,
-            "$.context.page.frontMatter.sitemap.changeFrequency",
-        )?
-        .first()
-        .and_then(|s| s.as_str());
+        let change_freq = self
+            .config
+            .change_frequency
+            .as_ref()
+            .map(|c| value_by_template(context, handlebars, c))
+            .transpose()?
+            .filter(|s| !s.is_empty());
 
         let change_freq = match change_freq {
-            Some(s) => Some(ChangeFrequency::from_str(s)?),
+            Some(s) => Some(ChangeFrequency::from_str(&s)?),
             _ => None,
         };
 
         // priority
 
-        let priority = value_by_path(context, "$.context.page.frontMatter.sitemap.priority")?;
+        let priority = self
+            .config
+            .priority
+            .as_ref()
+            .map(|p| value_by_template(context, handlebars, p))
+            .transpose()?
+            .filter(|s| !s.is_empty());
 
-        let priority = match priority.first() {
-            Some(s) => Some(s.as_f64().ok_or(GeneratorError::Error(
-                "'priority' must be a numeric value, or unset".into(),
-            ))?),
+        let priority = match priority {
+            Some(s) => Some(s.parse::<f64>().map_err(|err| {
+                GeneratorError::GenericDetailError(
+                    err.into(),
+                    format!("'priority' must be a numeric value, or unset: {}", s),
+                )
+            })?),
             _ => None,
         };
 
+        // write entry
+
         self.write_entry(&url, last_mod, change_freq, priority)?;
+
+        // done
 
         Ok(())
     }
 
     fn complete(&mut self, _: &mut Handlebars) -> Result<()> {
+        // close xml tag
         self.writer
             .write_event(Event::End(BytesEnd::borrowed(b"urlset")))?;
 
@@ -187,9 +207,9 @@ impl<'a, W: Write> ProcessorContext for SitemapContext<'a, W> {
     }
 }
 
-fn value_by_path<'a>(context: &'a Value, path: &'a str) -> Result<Vec<&'a Value>> {
-    let result = jsonpath_lib::select(context, path.as_ref())
-        .map_err(|e| GeneratorError::JsonPath(e.to_string()))?;
-
-    Ok(result)
+fn value_by_template(context: &Value, handlebars: &Handlebars, template: &str) -> Result<String> {
+    handlebars
+        .render_template(template, context)
+        .map_err(|err| GeneratorError::TemplateRenderError(err).into())
+        .map(|s| s.trim().to_string())
 }
