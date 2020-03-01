@@ -1,10 +1,9 @@
-use crate::generator::GeneratorConfig;
+use crate::generator::{GeneratorConfig, Output};
 use crate::path::first_value_for_path;
 use failure::Error;
 use handlebars::Handlebars;
 use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::Writer;
-use relative_path::RelativePath;
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -27,7 +26,7 @@ pub trait Processor {
 pub trait ProcessorContext {
     fn file_created(
         &mut self,
-        path: &RelativePath,
+        output: &Output,
         context: &Value,
         handlebars: &mut Handlebars,
     ) -> Result<()>;
@@ -62,12 +61,12 @@ impl<'a> ProcessorSession<'a> {
 
     pub fn file_created(
         &mut self,
-        path: &RelativePath,
+        output: &Output,
         context: &Value,
         handlebars: &mut Handlebars,
     ) -> Result<()> {
         for p in &mut self.processors {
-            (*p).file_created(path, context, handlebars)?;
+            (*p).file_created(output, context, handlebars)?;
         }
         Ok(())
     }

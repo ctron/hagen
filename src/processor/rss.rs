@@ -1,11 +1,10 @@
-use crate::generator::GeneratorConfig;
+use crate::generator::{GeneratorConfig, Output};
 use crate::helper::url::full_url_for;
 use crate::processor::{xml_write_element, Having, Processor, ProcessorContext};
 use chrono::{DateTime, Utc};
 use failure::Error;
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, Event};
 use quick_xml::Writer;
-use relative_path::RelativePath;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -167,21 +166,16 @@ impl Processor for RssProcessor {
             xml_write_element(&mut writer, "sy:updateBase", update_base)?;
         }
 
-        Ok(Box::new(RssContext::<'a> {
-            config,
-            writer,
-            generator_config,
-        }))
+        Ok(Box::new(RssContext { config, writer }))
     }
 }
 
-pub struct RssContext<'a, W: Write> {
+pub struct RssContext<W: Write> {
     config: RssProcessorConfig,
     writer: Writer<W>,
-    generator_config: &'a GeneratorConfig,
 }
 
-impl<'a, W: Write> RssContext<'a, W> {
+impl<W: Write> RssContext<W> {
     fn matches(&self, context: &Value) -> Result<Option<&Page>> {
         for p in &self.config.pages {
             if p.having.matches(context)? {
@@ -226,10 +220,10 @@ impl<'a, W: Write> RssContext<'a, W> {
     }
 }
 
-impl<'a, W: Write> ProcessorContext for RssContext<'a, W> {
+impl<W: Write> ProcessorContext for RssContext<W> {
     fn file_created(
         &mut self,
-        path: &RelativePath,
+        output: &Output,
         context: &Value,
         handlebars: &mut Handlebars,
     ) -> Result<()> {
@@ -247,7 +241,7 @@ impl<'a, W: Write> ProcessorContext for RssContext<'a, W> {
             .ok_or_else(|| {
                 GeneratorError::Error(format!(
                     "Missing value for 'title' for RSS in page '{:?}'",
-                    path
+                    output.path
                 ))
             })?;
         let creator = self.eval_value(handlebars, context, &m.data, |d| &d.creator)?;
@@ -268,9 +262,9 @@ impl<'a, W: Write> ProcessorContext for RssContext<'a, W> {
 
         // link
 
-        let url = crate::helper::url::full_url_for(&self.generator_config.basename, path.as_str())?;
+        let url = &output.url;
         self.writer.write(b"\t")?;
-        xml_write_element(&mut self.writer, "link", &url)?;
+        xml_write_element(&mut self.writer, "link", url)?;
 
         // guid
 

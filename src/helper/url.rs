@@ -77,7 +77,7 @@ use log::info;
 impl HelperDef for AbsoluteUrlHelper {
     fn call<'reg: 'rc, 'rc>(
         &self,
-        h: &Helper<'reg, 'rc>,
+        _: &Helper<'reg, 'rc>,
         _: &'reg Handlebars,
         _: &'rc Context,
         _: &mut RenderContext,
@@ -89,9 +89,8 @@ impl HelperDef for AbsoluteUrlHelper {
             .map_err(|_| RenderError::new("Failed to get generator context"))?
             .as_ref()
             .unwrap();
-        let url = full_url(h, &context.output)?;
 
-        out.write(url.as_str())?;
+        out.write(&context.output.url)?;
 
         Ok(())
     }
@@ -197,6 +196,7 @@ mod tests {
     fn test_full_url(site_url: &str, path: &str, url: &str, expected: &str) {
         let o = Output {
             site_url: site_url.into(),
+            url: url.to_string(),
             path: path.into(),
             template: None,
         };
@@ -255,7 +255,7 @@ mod tests {
             config.basename.to_string(),
             "/foo/bar",
             Option::None::<String>,
-        );
+        )?;
         let ctx = GeneratorContext::new(&config, &output);
         *context_provider.write().unwrap() = Some(ctx);
 

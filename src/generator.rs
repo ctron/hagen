@@ -22,7 +22,7 @@ use crate::helper::markdown::MarkdownifyHelper;
 
 use crate::copy;
 use crate::helper::time::TimeHelper;
-use crate::helper::url::{AbsoluteUrlHelper, ActiveHelper, RelativeUrlHelper};
+use crate::helper::url::{full_url_for, AbsoluteUrlHelper, ActiveHelper, RelativeUrlHelper};
 use relative_path::RelativePath;
 
 use crate::processor::{Processor, ProcessorSession};
@@ -33,9 +33,10 @@ use crate::processor::sitemap::SitemapProcessor;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::BTreeMap;
-use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 use structopt::StructOpt;
+
+use std::str::FromStr;
 use url::Url;
 
 lazy_static! {
@@ -51,20 +52,36 @@ pub struct Output {
     pub site_url: String,
     // the name of template
     pub template: Option<String>,
+    // the output URL
+    pub url: String,
 }
 
 impl Output {
-    pub fn new<S1, S2, S3>(site_url: S1, path: S2, template: Option<S3>) -> Self
+    pub fn new<S1, S2, S3>(site_url: S1, path: S2, template: Option<S3>) -> Result<Self>
     where
         S1: Into<String>,
         S2: Into<String>,
         S3: Into<String>,
     {
-        Output {
-            path: path.into(),
-            site_url: site_url.into(),
-            template: template.map(|s| s.into()),
+        let site_url_str = site_url.into();
+        let site_url = Url::from_str(&site_url_str)?;
+        let path = path.into();
+        let mut url = full_url_for(&site_url, &path)?;
+
+        // remove last element with "/" if it is "index.html"
+        if url.path().ends_with("/index.html") {
+            url.path_segments_mut()
+                .map_err(|_| GeneratorError::Error("Unable to parse path".into()))?
+                .pop()
+                .push("");
         }
+
+        Ok(Output {
+            path,
+            url: url.into_string(),
+            site_url: site_url_str,
+            template: template.map(|s| s.into()),
+        })
     }
 }
 
@@ -397,14 +414,14 @@ impl<'a> Generator<'a> {
 
         // page data
 
-        let output = Output::new(config.basename.as_str(), &path, template.as_ref());
+        let output = Output::new(config.basename.as_str(), &path, template.as_ref())?;
 
         {
             let ctx = GeneratorContext::new(config, &output);
             {
                 *self.context_provider.write().unwrap() = Some(ctx);
             }
-            let output = serde_json::to_value(&output)?;
+            let output_value = serde_json::to_value(&output)?;
 
             // render
 
@@ -414,7 +431,7 @@ impl<'a> Generator<'a> {
             let writer = File::create(target)?;
 
             let context = Generator::build_context(&rule, &context)?;
-            let data = &self.data(Some(output), Some(context.clone()));
+            let data = &self.data(Some(output_value), Some(context.clone()));
 
             match template {
                 Some(ref t) => self.handlebars.render_to_write(t, data, writer)?,
@@ -429,7 +446,7 @@ impl<'a> Generator<'a> {
             }
 
             // call processors
-            processors.file_created(&relative_target, data, &mut self.handlebars)?;
+            processors.file_created(&output, data, &mut self.handlebars)?;
 
             // reset current context
             {

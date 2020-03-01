@@ -4,12 +4,11 @@ use failure::Error;
 
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, Event};
 use quick_xml::Writer;
-use relative_path::RelativePath;
 use std::fs::File;
 use std::io::Write;
 use url::Url;
 
-use crate::generator::GeneratorConfig;
+use crate::generator::{GeneratorConfig, Output};
 use chrono::{DateTime, Utc};
 use std::str::FromStr;
 use strum_macros::{AsRefStr, AsStaticStr, EnumString};
@@ -58,19 +57,14 @@ impl Processor for SitemapProcessor {
         ))?;
         writer.write(b"\n")?;
 
-        Ok(Box::new(SitemapContext::<'a> {
-            config,
-            writer,
-            generator_config,
-        }))
+        Ok(Box::new(SitemapContext { config, writer }))
     }
 }
 
-pub struct SitemapContext<'a, W: Write> {
+pub struct SitemapContext<W: Write> {
     config: SitemapProcessorConfig,
 
     writer: Writer<W>,
-    generator_config: &'a GeneratorConfig,
 }
 
 #[derive(AsRefStr, AsStaticStr, EnumString)]
@@ -85,7 +79,7 @@ pub enum ChangeFrequency {
     Never,
 }
 
-impl<'a, W: Write> SitemapContext<'a, W> {
+impl<W: Write> SitemapContext<W> {
     fn write_entry(
         &mut self,
         loc: &Url,
@@ -158,10 +152,10 @@ impl<'a, W: Write> SitemapContext<'a, W> {
     }
 }
 
-impl<'a, W: Write> ProcessorContext for SitemapContext<'a, W> {
+impl<W: Write> ProcessorContext for SitemapContext<W> {
     fn file_created(
         &mut self,
-        path: &RelativePath,
+        output: &Output,
         context: &Value,
         handlebars: &mut Handlebars,
     ) -> Result<()> {
@@ -169,7 +163,7 @@ impl<'a, W: Write> ProcessorContext for SitemapContext<'a, W> {
             return Ok(());
         }
 
-        let url = crate::helper::url::full_url_for(&self.generator_config.basename, path.as_str())?;
+        let url = Url::from_str(&output.url)?;
         let last_mod = self.last_mod_from(context, handlebars)?;
 
         // change freq
