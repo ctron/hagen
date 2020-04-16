@@ -1,6 +1,6 @@
 [package]
 name = "hagen"
-version = "0.1.5"
+version = "0.1.4"
 authors = ["Jens Reimann <ctron@dentrassi.de>"]
 edition = "2018"
 license = "EPL-2.0"
@@ -15,7 +15,7 @@ readme = "../README.md"
 
 [dependencies]
 
-hagen-core = { path = "../hagen-core", version = "0.1.5" }
+hagen-core = { path = "../hagen-core", version = "0.1.4" }
 
 env_logger = "^0.7"
 failure = "^0.1"
