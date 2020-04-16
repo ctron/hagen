@@ -77,7 +77,7 @@ use log::info;
 impl HelperDef for AbsoluteUrlHelper {
     fn call<'reg: 'rc, 'rc>(
         &self,
-        _: &Helper<'reg, 'rc>,
+        h: &Helper<'reg, 'rc>,
         _: &'reg Handlebars,
         _: &'rc Context,
         _: &mut RenderContext,
@@ -90,7 +90,9 @@ impl HelperDef for AbsoluteUrlHelper {
             .as_ref()
             .unwrap();
 
-        out.write(&context.output.url)?;
+        let url = full_url(h, &context.output)?;
+
+        out.write(url.as_str())?;
 
         Ok(())
     }
@@ -237,25 +239,38 @@ mod tests {
     }
 
     fn setup(h: &mut Handlebars) -> Result<(), Error> {
+        setup_with(h, "http://localhost/base/", "/foo/bar")
+    }
+
+    fn setup_with(h: &mut Handlebars, base: &str, path: &str) -> Result<(), Error> {
         let context_provider = Arc::new(RwLock::new(None));
+
         h.register_helper(
             "relative_url",
             Box::new(RelativeUrlHelper {
                 context: context_provider.clone(),
             }),
         );
+        h.register_helper(
+            "absolute_url",
+            Box::new(AbsoluteUrlHelper {
+                context: context_provider.clone(),
+            }),
+        );
+        h.register_helper(
+            "active",
+            Box::new(ActiveHelper {
+                context: context_provider.clone(),
+            }),
+        );
 
         let config = GeneratorConfig {
-            basename: Url::parse("http://localhost/base/")?,
+            basename: Url::parse(base)?,
             root: "/tmp".into(),
             output: "/tmp/output".into(),
         };
 
-        let output = Output::new(
-            config.basename.to_string(),
-            "/foo/bar",
-            Option::None::<String>,
-        )?;
+        let output = Output::new(config.basename.to_string(), path, Option::None::<String>)?;
         let ctx = GeneratorContext::new(&config, &output);
         *context_provider.write().unwrap() = Some(ctx);
 
@@ -284,9 +299,120 @@ mod tests {
         setup(&mut h)?;
 
         assert_eq!(
-            h.render_template(r#"{{ relative_url "/baz" }}"#, &data)?,
-            "/base/baz",
+            h.render_template(r#"{{ relative_url "/baz/buz/boz" }}"#, &data)?,
+            "/base/baz/buz/boz",
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_relative_url_3() -> Result<(), Error> {
+        let data = Map::new();
+        let mut h = Handlebars::new();
+
+        setup(&mut h)?;
+
+        assert_eq!(
+            h.render_template(r#"{{ relative_url "boz" }}"#, &data)?,
+            "/base/foo/boz",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_absolute_url_1() -> Result<(), Error> {
+        let data = Map::new();
+        let mut h = Handlebars::new();
+
+        setup(&mut h)?;
+
+        assert_eq!(
+            h.render_template(r#"{{ absolute_url "https://foo.bar/baz" }}"#, &data)?,
+            "https://foo.bar/baz",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_absolute_url_2() -> Result<(), Error> {
+        let data = Map::new();
+        let mut h = Handlebars::new();
+
+        setup(&mut h)?;
+
+        assert_eq!(
+            h.render_template(r#"{{ absolute_url "/baz/buz/boz" }}"#, &data)?,
+            "http://localhost/base/baz/buz/boz",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_absolute_url_3() -> Result<(), Error> {
+        let data = Map::new();
+        let mut h = Handlebars::new();
+
+        setup(&mut h)?;
+
+        assert_eq!(
+            h.render_template(r#"{{ absolute_url "boz" }}"#, &data)?,
+            "http://localhost/base/foo/boz",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_active_1() -> Result<(), Error> {
+        let data = Map::new();
+        let mut h = Handlebars::new();
+
+        setup_with(&mut h, "http://localhost/base", "/root")?;
+
+        assert_eq!(
+            h.render_template(r#"{{ active "/root" }}"#, &data)?,
+            "active",
+        );
+        assert_eq!(h.render_template(r#"{{ active "/root/" }}"#, &data)?, "",);
+        assert_eq!(h.render_template(r#"{{ active "/" }}"#, &data)?, "",);
+        assert_eq!(h.render_template(r#"{{ active "/root/bar" }}"#, &data)?, "",);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_active_2() -> Result<(), Error> {
+        let data = Map::new();
+        let mut h = Handlebars::new();
+
+        setup_with(&mut h, "http://localhost/base", "/root/index.html")?;
+
+        assert_eq!(h.render_template(r#"{{ active "/root" }}"#, &data)?, "",);
+        assert_eq!(
+            h.render_template(r#"{{ active "/root/" }}"#, &data)?,
+            "active",
+        );
+        assert_eq!(h.render_template(r#"{{ active "/" }}"#, &data)?, "",);
+        assert_eq!(h.render_template(r#"{{ active "/root/bar" }}"#, &data)?, "",);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_active_3() -> Result<(), Error> {
+        let data = Map::new();
+        let mut h = Handlebars::new();
+
+        setup_with(&mut h, "http://localhost/base", "/root/bar.html")?;
+
+        assert_eq!(h.render_template(r#"{{ active "/root" }}"#, &data)?, "",);
+        assert_eq!(h.render_template(r#"{{ active "/root/" }}"#, &data)?, "",);
+        assert_eq!(
+            h.render_template(r#"{{ active "/root/bar.html" }}"#, &data)?,
+            "active",
+        );
+        assert_eq!(h.render_template(r#"{{ active "/" }}"#, &data)?, "",);
+        assert_eq!(h.render_template(r#"{{ active "/root/bar" }}"#, &data)?, "",);
+
         Ok(())
     }
 }

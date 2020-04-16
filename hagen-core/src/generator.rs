@@ -65,11 +65,11 @@ impl Output {
     {
         let site_url_str = site_url.into();
         let site_url = Url::from_str(&site_url_str)?;
-        let path = path.into();
+        let path = normalize_path(path.into());
         let mut url = full_url_for(&site_url, &path)?;
 
-        // remove last element with "/" if it is "index.html"
-        if url.path().ends_with("/index.html") {
+        // remove last element "index.html"
+        if url.path().ends_with("index.html") {
             url.path_segments_mut()
                 .map_err(|_| GeneratorError::Error("Unable to parse path".into()))?
                 .pop()
@@ -526,9 +526,15 @@ impl<'a> Generator<'a> {
     }
 }
 
+/// Normalize a path.
 fn normalize_path<S: AsRef<str>>(path: S) -> String {
+    // translate backslashes into forward slashes
     let s = path.as_ref().replace('\\', "/");
-    RE.replace_all(&s, "/").into()
+
+    // convert multiple slashes into a single one
+    let s = RE.replace_all(&s, "/");
+
+    s.trim_start_matches('/').into()
 }
 
 #[cfg(test)]
@@ -542,26 +548,26 @@ mod tests {
 
     #[test]
     fn test_backslash() {
-        assert_eq!(normalize_path("\\foo/bar/baz"), "/foo/bar/baz");
+        assert_eq!(normalize_path("\\foo/bar/baz"), "foo/bar/baz");
     }
 
     #[test]
     fn test_double() {
-        assert_eq!(normalize_path("//foo/bar/baz"), "/foo/bar/baz");
+        assert_eq!(normalize_path("//foo/bar/baz"), "foo/bar/baz");
     }
 
     #[test]
     fn test_double_2() {
-        assert_eq!(normalize_path("//foo////bar/baz"), "/foo/bar/baz");
+        assert_eq!(normalize_path("//foo////bar/baz"), "foo/bar/baz");
     }
 
     #[test]
     fn test_double_back() {
-        assert_eq!(normalize_path("\\\\foo/bar/baz"), "/foo/bar/baz");
+        assert_eq!(normalize_path("\\\\foo/bar/baz"), "foo/bar/baz");
     }
 
     #[test]
     fn test_double_back_2() {
-        assert_eq!(normalize_path("\\\\foo//bar/baz"), "/foo/bar/baz");
+        assert_eq!(normalize_path("\\\\foo//bar/baz"), "foo/bar/baz");
     }
 }

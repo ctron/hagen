@@ -37,3 +37,6 @@ strum_macros = "0.17"
 [dependencies.handlebars]
 version = "3.0.1"
 features = ["dir_source"]
+
+[dev-dependencies]
+env_logger = "^0.7"
