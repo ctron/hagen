@@ -1,1 +1,1 @@
-Sitemap: https://ctron.github.io/hagen/robots.txt
+Sitemap: https://ctron.github.io/hagen/sitemap.xml
