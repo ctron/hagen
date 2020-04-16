@@ -1,18 +1,10 @@
-mod copy;
-mod error;
-mod generator;
-mod helper;
-mod loader;
-mod path;
-mod processor;
-mod rules;
-
-use generator::Generator;
-
-use crate::generator::Options;
 use env_logger::Env;
 use failure::{Error, Fail};
+
 use structopt::StructOpt;
+
+use hagen_core::generator::Generator;
+use hagen_core::generator::Options;
 
 type Result<T> = std::result::Result<T, Error>;
 

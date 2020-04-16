@@ -1,0 +1,22 @@
+[package]
+name = "hagen"
+version = "0.1.5"
+authors = ["Jens Reimann <ctron@dentrassi.de>"]
+edition = "2018"
+license = "EPL-2.0"
+description = "A static homepage generator"
+homepage = "https://ctron.github.io/hagen"
+repository = "https://github.com/ctron/hagen"
+keywords = ["homepage", "generator", "handlebars", "hugo", "jekyll"]
+categories = ["web-programming", "template-engine", "command-line-utilities"]
+readme = "../README.md"
+
+[badges]
+
+[dependencies]
+
+hagen-core = { path = "../hagen-core", version = "0.1.5" }
+
+env_logger = "^0.7"
+failure = "^0.1"
+structopt = "0.3"

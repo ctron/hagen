@@ -1,40 +1,5 @@
-[package]
-name = "hagen"
-version = "0.1.4"
-authors = ["Jens Reimann <ctron@dentrassi.de>"]
-edition = "2018"
-license = "EPL-2.0"
-description = "A static homepage generator"
-homepage = "https://ctron.github.io/hagen"
-repository = "https://github.com/ctron/hagen"
-keywords = ["homepage", "generator", "handlebars", "hugo", "jekyll"]
-categories = ["web-programming", "template-engine", "command-line-utilities"]
-readme = "README.md"
-
-[badges]
-
-[dependencies]
-failure = "^0.1"
-log = "^0.4"
-env_logger = "^0.7"
-walkdir = "^2"
-serde = { version = "^1.0", features = ["derive"] }
-serde_json = "^1.0"
-serde_yaml = "^0.8"
-jsonpath_lib = "^0.2"
-pulldown-cmark = "0.6.1"
-url = "2"
-chrono="0.4"
-relative-path = "1"
-globset = "0.4"
-regex = "1"
-lazy_static = "1"
-structopt = "0.3"
-clap = "2.33"
-quick-xml = "0.17"
-strum = "0.17"
-strum_macros = "0.17"
-
-[dependencies.handlebars]
-version = "3.0.1"
-features = ["dir_source"]
+[workspace]
+members = [
+    "hagen-core",
+    "hagen",
+]
