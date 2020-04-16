@@ -10221,4 +10221,11 @@ a.text-dark:hover, a.text-dark:focus {
     border-color: #dee2e6;
   }
 }
+
+pre {
+  background-color: #f8f9fa;
+  background-clip: border-box;
+  padding: 1rem 0.5rem;
+  margin-bottom: 1rem;
+}
 /*# sourceMappingURL=bootstrap.css.map */
