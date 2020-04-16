@@ -1,27 +1,23 @@
 
-<div class="container pt-3">
-
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <a class="navbar-brand" href="{{ relative_url "/" }}">Hagen</a>
-        <button class="navbar-toggler" type="button"
-                data-toggle="collapse" data-target="#navbarNav"
-                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav">
-                {{#each compact.site.menu as |item|}}
-                    <li class="nav-item {{active item.url}}">
-                        <a
-                                class="nav-link"
-                                href="{{ relative_url item.url }}">{{item.label}}{{#active item.url}} <span class="sr-only">(current)</span>{{/active}}</a>
-                    </li>
-                {{/each}}
-            </ul>
-        </div>
-    </nav>
-
-</div>
+<nav class="container navbar navbar-expand-lg navbar-light bg-light mt-3">
+    <a class="navbar-brand" href="{{ relative_url "/" }}">Hagen</a>
+    <button class="navbar-toggler" type="button"
+            data-toggle="collapse" data-target="#navbarNav"
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+            {{#each compact.site.menu as |item|}}
+                <li class="nav-item {{active item.url}}">
+                    <a
+                            class="nav-link"
+                            href="{{ relative_url item.url }}">{{item.label}}{{#active item.url}} <span class="sr-only">(current)</span>{{/active}}</a>
+                </li>
+            {{/each}}
+        </ul>
+    </div>
+</nav>
 
 <div class="container py-4">
     {{> parts/heading }}

@@ -1,2 +1,12 @@
 
 @import "../node_modules/bootstrap/scss/bootstrap";
+
+$code-block-padding:  1rem !default;
+$code-block-bg:       $gray-100 !default;
+
+pre {
+  background-color: $code-block-bg;
+  background-clip: border-box;
+  padding: $code-block-padding ($code-block-padding / 2);
+  margin-bottom: $code-block-padding;
+}
