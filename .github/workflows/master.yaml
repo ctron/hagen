@@ -82,16 +82,17 @@ jobs:
         if: env.RELEASE_VERSION
         run: docker push quay.io/ctron/hagen:${RELEASE_VERSION}
 
+      # Pushing to github seems broken at the moment: "unknown blob"
       # Unfortunately the GitHub docker registry requires a sign-in, even for public repositories
-      - name: Login to github container repository
-        run: docker login -u ctron -p ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com
+      # - name: Login to github container repository
+      #  run: docker login -u ctron -p ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com
 
-      - name: Push latest to github container repository
-        run: docker push docker.pkg.github.com/${{ github.repository }}/hagen:latest
+      # - name: Push latest to github container repository
+      #   run: docker push docker.pkg.github.com/${{ github.repository }}/hagen:latest
 
-      - name: Push release to github container repository
-        if: env.RELEASE_VERSION
-        run: docker push docker.pkg.github.com/${{ github.repository }}/hagen:${RELEASE_VERSION}
+      # - name: Push release to github container repository
+      #  if: env.RELEASE_VERSION
+      #  run: docker push docker.pkg.github.com/${{ github.repository }}/hagen:${RELEASE_VERSION}
 
   website:
 
