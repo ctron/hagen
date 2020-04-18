@@ -60,6 +60,7 @@ jobs:
         run: |
           docker build . --file .github/workflows/Dockerfile \
             --tag docker.pkg.github.com/${{ github.repository }}/hagen:latest \
+            --tag docker.io/ctron/hagen:latest \
             --tag quay.io/ctron/hagen:latest
 
       - name: Check for release
@@ -70,7 +71,10 @@ jobs:
         if: env.RELEASE_VERSION
         run: |
           docker tag quay.io/ctron/hagen:latest quay.io/ctron/hagen:${RELEASE_VERSION}
+          docker tag quay.io/ctron/hagen:latest docker.io/ctron/hagen:${RELEASE_VERSION}
           docker tag quay.io/ctron/hagen:latest docker.pkg.github.com/${{ github.repository }}/hagen:${RELEASE_VERSION}
+
+      # Quay.io
 
       - name: Login to quay.io
         run: docker login -u "${{ secrets.QUAY_IO_USERNAME }}" -p "${{ secrets.QUAY_IO_PASSWORD }}" quay.io
@@ -81,6 +85,20 @@ jobs:
       - name: Push release to quay.io
         if: env.RELEASE_VERSION
         run: docker push quay.io/ctron/hagen:${RELEASE_VERSION}
+
+      # Docker Hub
+
+      - name: Login to docker.io
+        run: docker login -u "${{ secrets.DOCKER_IO_USERNAME }}" -p "${{ secrets.DOCKER_IO_PASSWORD }}" docker.io
+
+      - name: Push latest to docker.io
+        run: docker push docker.io/ctron/hagen:latest
+
+      - name: Push release to docker.io
+        if: env.RELEASE_VERSION
+        run: docker push docker.io/ctron/hagen:${RELEASE_VERSION}
+
+      # GitHub Packages
 
       # Pushing to github seems broken at the moment: "unknown blob"
       # Unfortunately the GitHub docker registry requires a sign-in, even for public repositories
