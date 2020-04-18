@@ -12,6 +12,10 @@ description: |
 Hagen is a static website generator, written in the [Rust language](https://www.rust-lang.org/). It's goal is
 to be flexible and extensible, making it possible to generate all kinds of web sites, not only blogs. 
 
+This page is generated with Hagen, and you can see the full setup in
+the [website/](https://github.com/ctron/hagen/tree/master/website)
+directory of its [GitHub repository](https://github.com/ctron/hagen).
+
 ## Installing
 
 You can install Hagen using cargo:
