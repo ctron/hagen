@@ -1,4 +1,4 @@
-# Hagen ![Master CI](https://github.com/ctron/hagen/workflows/Master%20CI/badge.svg) ![Crates.io](https://img.shields.io/crates/v/hagen)
+# Hagen [![Master CI](https://github.com/ctron/hagen/workflows/Master%20CI/badge.svg)](https://github.com/ctron/hagen/actions?query=workflow%3A%22Master+CI%22) [![Crates.io](https://img.shields.io/crates/v/hagen)](https://crates.io/crates/hagen) [![Container Image Size](https://img.shields.io/docker/image-size/ctron/hagen?sort=semver)](https://quay.io/repository/ctron/hagen?tab=tags)
 
 "Hagen" is a generator for static homepages, written in Rust.
 
