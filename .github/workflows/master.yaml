@@ -118,7 +118,7 @@ jobs:
     needs: build
 
     # build the website only for master
-    if: !env.RELEASE_VERSION
+    if: "!env.RELEASE_VERSION"
 
     steps:
 
