@@ -1,5 +1,5 @@
-use std::path::PathBuf;
-use std::{env, fs};
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use handlebars::Handlebars;
 
@@ -34,7 +34,6 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::BTreeMap;
 use std::sync::{Arc, RwLock};
-use structopt::StructOpt;
 
 use std::str::FromStr;
 use url::Url;
@@ -85,22 +84,6 @@ impl Output {
     }
 }
 
-#[derive(Clone, StructOpt)]
-#[structopt(name = "hagen", author = "Jens Reimann")]
-pub struct Options {
-    /// Override the basename of the site
-    #[structopt(short = "b", long = "base")]
-    basename: Option<String>,
-
-    /// The root of the site. Must contain the file "hagen.yaml" and the "content" directory.
-    #[structopt(short = "r", long = "root")]
-    root: Option<String>,
-
-    /// Dump the content files as well.
-    #[structopt(short = "D", long = "dump")]
-    dump: bool,
-}
-
 #[derive(Debug, Clone)]
 pub struct GeneratorConfig {
     pub root: PathBuf,
@@ -123,9 +106,40 @@ impl GeneratorContext {
     }
 }
 
-pub struct Generator<'a> {
-    options: Options,
+pub struct GeneratorBuilder {
     root: PathBuf,
+    basename_override: Option<String>,
+    dump: bool,
+}
+
+impl GeneratorBuilder {
+    pub fn new<P: Into<PathBuf>>(root: P) -> Self {
+        return GeneratorBuilder {
+            root: root.into(),
+            basename_override: None,
+            dump: false,
+        };
+    }
+
+    pub fn dump(mut self, dump: bool) -> Self {
+        self.dump = dump;
+        self
+    }
+
+    pub fn override_basename<S: Into<String>>(mut self, basename: Option<S>) -> Self {
+        self.basename_override = basename.map(|s| s.into());
+        self
+    }
+
+    pub fn build<'b>(self) -> Generator<'b> {
+        Generator::new(&self.root, self.basename_override, self.dump)
+    }
+}
+
+pub struct Generator<'a> {
+    root: PathBuf,
+    basename_override: Option<String>,
+    dump: bool,
 
     handlebars: Handlebars<'a>,
 
@@ -143,7 +157,7 @@ impl<'a> Generator<'a> {
         self.root.join("output")
     }
 
-    pub fn new(options: Options) -> Self {
+    pub(crate) fn new(root: &Path, basename_override: Option<String>, dump: bool) -> Self {
         // create instance
 
         let mut handlebars = Handlebars::new();
@@ -157,10 +171,7 @@ impl<'a> Generator<'a> {
 
         // eval root
 
-        let root = match options.root {
-            Some(ref x) => PathBuf::from(x),
-            None => env::current_dir().expect("Failed to get current directory"),
-        };
+        let root = PathBuf::from(&root);
 
         // context
 
@@ -202,9 +213,12 @@ impl<'a> Generator<'a> {
         // create generator
 
         Generator {
-            options,
-            handlebars,
             root,
+            basename_override,
+            dump,
+
+            handlebars,
+
             processors,
 
             config: Default::default(),
@@ -258,7 +272,7 @@ impl<'a> Generator<'a> {
         self.full_content = content.to_value()?;
         self.compact_content = Generator::compact_content(&self.full_content).unwrap_or_default();
 
-        if self.options.dump {
+        if self.dump {
             // dump content
             info!("Dumping content");
             let writer = File::create(self.output().join("content.yaml"))?;
@@ -298,7 +312,8 @@ impl<'a> Generator<'a> {
             .ok_or(GeneratorError::Error("Missing site configuration".into()))?
             .clone();
 
-        let mut basename = (&self.options.basename)
+        let mut basename = self
+            .basename_override
             .as_ref()
             .unwrap_or(&config.site.basename)
             .to_owned();

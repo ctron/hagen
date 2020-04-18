@@ -1,6 +1,6 @@
 [package]
 name = "hagen-core"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Jens Reimann <ctron@dentrassi.de>"]
 edition = "2018"
 license = "EPL-2.0"
@@ -28,8 +28,6 @@ relative-path = "1"
 globset = "0.4"
 regex = "1"
 lazy_static = "1"
-structopt = "0.3"
-clap = "2.33"
 quick-xml = "0.17"
 strum = "0.17"
 strum_macros = "0.17"
