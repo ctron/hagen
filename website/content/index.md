@@ -1,6 +1,5 @@
 ---
 layout: default
-title: Hagen
 timestamp:
   published: 2020-02-01T19:42:00+02:00
 description: |
