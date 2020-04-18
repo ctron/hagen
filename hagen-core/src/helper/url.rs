@@ -28,8 +28,8 @@ pub fn full_url_from(url: &str, output: &generator::Output) -> Result<url::Url, 
     // start with the site base name
     let result = Url::parse(&output.site_url).map_err(|err| RenderError::with(err))?;
 
-    // if we have an absolute URL, then absolute is still relative to the site base
-    let result = if url.is_empty() {
+    // if we have an absolute path, then absolute is still relative to the site base
+    let mut result = if url.is_empty() {
         result
             .join(&output.path)
             .map_err(|err| RenderError::with(err))?
@@ -44,6 +44,14 @@ pub fn full_url_from(url: &str, output: &generator::Output) -> Result<url::Url, 
         let url = &url[1..];
         result.join(url).map_err(|err| RenderError::with(err))?
     };
+
+    if result.path().ends_with("index.html") {
+        result
+            .path_segments_mut()
+            .map_err(|_| RenderError::new("Failed to edit URL"))?
+            .pop()
+            .push("");
+    }
 
     Ok(result)
 }
@@ -71,8 +79,6 @@ fn url_param(h: &Helper) -> Result<String, RenderError> {
 pub struct AbsoluteUrlHelper {
     pub context: Arc<RwLock<Option<GeneratorContext>>>,
 }
-
-use log::info;
 
 impl HelperDef for AbsoluteUrlHelper {
     fn call<'reg: 'rc, 'rc>(
@@ -114,7 +120,7 @@ impl HelperDef for RelativeUrlHelper {
         // early check if this is a full url
 
         let url = url_param(h)?;
-        info!("Url: {:?}", url);
+        debug!("Url: {:?}", url);
         if let Ok(url) = Url::parse(&url) {
             out.write(url.as_str())?;
             return Ok(());
@@ -149,7 +155,7 @@ impl HelperDef for ActiveHelper {
         rc: &mut RenderContext<'reg, 'rc>,
         out: &mut dyn Output,
     ) -> HelperResult {
-        let mut url = h
+        let url = h
             .param(0)
             .ok_or(RenderError::new("Missing URL parameter for 'active'"))?
             .value()
@@ -157,16 +163,13 @@ impl HelperDef for ActiveHelper {
             .map(|s| String::from(s))
             .ok_or(RenderError::new("Wrong value type of URL. Must be string."))?;
 
-        if url.ends_with("/") {
-            url.push_str("index.html")
-        }
-
         let context = self.context.read();
         let context = context
             .as_ref()
             .map_err(|_| RenderError::new("Failed to get generator context"))?
             .as_ref()
             .unwrap();
+
         let check_url = full_url_from(&url, &context.output)?;
         let page_url = full_url_from("", &context.output)?;
 
@@ -214,7 +217,7 @@ mod tests {
             "http://localhost:8080/",
             "index.html",
             "",
-            "http://localhost:8080/index.html",
+            "http://localhost:8080/",
         );
     }
 
@@ -224,7 +227,7 @@ mod tests {
             "http://localhost:8080/site/",
             "index.html",
             "",
-            "http://localhost:8080/site/index.html",
+            "http://localhost:8080/site/",
         );
     }
 
@@ -235,6 +238,16 @@ mod tests {
             "index.html",
             "/",
             "http://localhost:8080/site/",
+        );
+    }
+
+    #[test]
+    fn test_4() {
+        test_full_url(
+            "http://localhost:8080/",
+            "index.html",
+            "/",
+            "http://localhost:8080/",
         );
     }
 
@@ -320,6 +333,45 @@ mod tests {
     }
 
     #[test]
+    fn test_relative_url_empty_arg() -> Result<(), Error> {
+        let data = Map::new();
+        let mut h = Handlebars::new();
+
+        setup(&mut h)?;
+
+        assert_eq!(
+            h.render_template(r#"{{ relative_url "" }}"#, &data)?,
+            "/base/foo/bar",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_render_url_base_1() -> Result<(), Error> {
+        let data = Map::new();
+        let mut h = Handlebars::new();
+
+        setup_with(&mut h, "http://localhost/", "/robots.txt")?;
+
+        assert_eq!(
+            h.render_template(r#"{{ relative_url "sitemap.xml" }}"#, &data)?,
+            "/sitemap.xml",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_render_url_base_index() -> Result<(), Error> {
+        let data = Map::new();
+        let mut h = Handlebars::new();
+
+        setup_with(&mut h, "http://localhost/", "/index.html")?;
+
+        assert_eq!(h.render_template(r#"{{ relative_url "" }}"#, &data)?, "/",);
+        Ok(())
+    }
+
+    #[test]
     fn test_absolute_url_1() -> Result<(), Error> {
         let data = Map::new();
         let mut h = Handlebars::new();
@@ -357,6 +409,47 @@ mod tests {
         assert_eq!(
             h.render_template(r#"{{ absolute_url "boz" }}"#, &data)?,
             "http://localhost/base/foo/boz",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_absolute_url_empty_arg() -> Result<(), Error> {
+        let data = Map::new();
+        let mut h = Handlebars::new();
+
+        setup(&mut h)?;
+
+        assert_eq!(
+            h.render_template(r#"{{ absolute_url "" }}"#, &data)?,
+            "http://localhost/base/foo/bar",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_absolute_url_base_1() -> Result<(), Error> {
+        let data = Map::new();
+        let mut h = Handlebars::new();
+
+        setup_with(&mut h, "http://localhost/", "/robots.txt")?;
+
+        assert_eq!(
+            h.render_template(r#"{{ absolute_url "sitemap.xml" }}"#, &data)?,
+            "http://localhost/sitemap.xml",
+        );
+        Ok(())
+    }
+    #[test]
+    fn test_absolute_url_base_index() -> Result<(), Error> {
+        let data = Map::new();
+        let mut h = Handlebars::new();
+
+        setup_with(&mut h, "http://localhost/", "/index.html")?;
+
+        assert_eq!(
+            h.render_template(r#"{{ absolute_url "" }}"#, &data)?,
+            "http://localhost/",
         );
         Ok(())
     }
@@ -412,6 +505,47 @@ mod tests {
         );
         assert_eq!(h.render_template(r#"{{ active "/" }}"#, &data)?, "",);
         assert_eq!(h.render_template(r#"{{ active "/root/bar" }}"#, &data)?, "",);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_active_index_1() -> Result<(), Error> {
+        let data = Map::new();
+        let mut h = Handlebars::new();
+
+        setup_with(&mut h, "http://localhost/base", "/index.html")?;
+
+        assert_eq!(h.render_template(r#"{{ active "/" }}"#, &data)?, "active",);
+        assert_eq!(
+            h.render_template(r#"{{ active "/index.html" }}"#, &data)?,
+            "active",
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_active_index_2() -> Result<(), Error> {
+        let data = Map::new();
+        let mut h = Handlebars::new();
+
+        setup_with(&mut h, "http://localhost/base", "/foo/index.html")?;
+
+        assert_eq!(h.render_template(r#"{{ active "/" }}"#, &data)?, "",);
+        assert_eq!(
+            h.render_template(r#"{{ active "/index.html" }}"#, &data)?,
+            "",
+        );
+
+        assert_eq!(
+            h.render_template(r#"{{ active "/foo/" }}"#, &data)?,
+            "active",
+        );
+        assert_eq!(
+            h.render_template(r#"{{ active "/foo/index.html" }}"#, &data)?,
+            "active",
+        );
 
         Ok(())
     }

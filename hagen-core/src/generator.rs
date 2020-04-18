@@ -62,13 +62,16 @@ impl Output {
         S2: Into<String>,
         S3: Into<String>,
     {
-        let site_url_str = site_url.into();
+        let mut site_url_str = site_url.into();
+        if !site_url_str.ends_with('/') {
+            site_url_str.push('/');
+        }
         let site_url = Url::from_str(&site_url_str)?;
         let path = normalize_path(path.into());
         let mut url = full_url_for(&site_url, &path)?;
 
         // remove last element "index.html"
-        if url.path().ends_with("index.html") {
+        if url.path().ends_with("/index.html") {
             url.path_segments_mut()
                 .map_err(|_| GeneratorError::Error("Unable to parse path".into()))?
                 .pop()
