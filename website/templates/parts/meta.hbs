@@ -11,7 +11,7 @@
 <meta property="og:type" content="article" />
 <meta property="og:updated_time" content="{{~> parts/meta/update_timestamp ~}}" />
 {{~#with context.page.frontMatter.description~}}
-    <meta name="og:description" content="{{this}}" />
+    <meta property="og:description" content="{{this}}" />
 {{~/with}}
 
 <meta property="article:published_time" content="{{~> parts/meta/publish_timestamp ~}}" />
