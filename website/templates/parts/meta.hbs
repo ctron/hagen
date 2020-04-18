@@ -10,7 +10,7 @@
 <meta property="og:title" content="{{~> parts/title ~}}" />
 <meta property="og:type" content="article" />
 <meta property="og:updated_time" content="{{~> parts/meta/update_timestamp ~}}" />
-{{~#with context.page.frontMatter.description~}}
+{{#with context.page.frontMatter.description~}}
     <meta property="og:description" content="{{this}}" />
 {{~/with}}
 
@@ -18,7 +18,7 @@
 <meta property="article:modified_time" content="{{~> parts/meta/update_timestamp ~}}" />
 
 <meta name="twitter:card" content="summary" />
-{{~#with context.page.frontMatter.description~}}
+{{#with context.page.frontMatter.description~}}
     <meta name="twitter:description" content="{{this}}" />
 {{~/with}}
 <meta name="twitter:title" content="{{~> parts/title ~}}" />
