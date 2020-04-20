@@ -5,11 +5,9 @@ use handlebars::{
 };
 use url::Url;
 
-use crate::generator::GeneratorContext;
+use crate::generator::GeneratorContextProvider;
 use failure::Error;
 use log::debug;
-
-use std::sync::{Arc, RwLock};
 
 pub fn full_url_for<S: AsRef<str>>(basename: &Url, path: S) -> Result<Url, Error> {
     let path = path.as_ref();
@@ -77,7 +75,7 @@ fn url_param(h: &Helper) -> Result<String, RenderError> {
 }
 
 pub struct AbsoluteUrlHelper {
-    pub context: Arc<RwLock<Option<GeneratorContext>>>,
+    pub context: GeneratorContextProvider,
 }
 
 impl HelperDef for AbsoluteUrlHelper {
@@ -89,14 +87,9 @@ impl HelperDef for AbsoluteUrlHelper {
         _: &mut RenderContext,
         out: &mut dyn Output,
     ) -> HelperResult {
-        let context = self.context.read();
-        let context = context
-            .as_ref()
-            .map_err(|_| RenderError::new("Failed to get generator context"))?
-            .as_ref()
-            .unwrap();
-
-        let url = full_url(h, &context.output)?;
+        let url = self
+            .context
+            .with(|context| Ok(full_url(h, &context.output)?))?;
 
         out.write(url.as_str())?;
 
@@ -105,7 +98,7 @@ impl HelperDef for AbsoluteUrlHelper {
 }
 
 pub struct RelativeUrlHelper {
-    pub context: Arc<RwLock<Option<GeneratorContext>>>,
+    pub context: GeneratorContextProvider,
 }
 
 impl HelperDef for RelativeUrlHelper {
@@ -128,13 +121,9 @@ impl HelperDef for RelativeUrlHelper {
 
         // otherwise build up from relative parts
 
-        let context = self.context.read();
-        let context = context
-            .as_ref()
-            .map_err(|_| RenderError::new("Failed to get generator context"))?
-            .as_ref()
-            .unwrap();
-        let url = full_url(h, &context.output)?;
+        let url = self
+            .context
+            .with(|context| Ok(full_url(h, &context.output)?))?;
 
         out.write(url.path())?;
 
@@ -143,7 +132,7 @@ impl HelperDef for RelativeUrlHelper {
 }
 
 pub struct ActiveHelper {
-    pub context: Arc<RwLock<Option<GeneratorContext>>>,
+    pub context: GeneratorContextProvider,
 }
 
 impl HelperDef for ActiveHelper {
@@ -163,15 +152,12 @@ impl HelperDef for ActiveHelper {
             .map(|s| String::from(s))
             .ok_or(RenderError::new("Wrong value type of URL. Must be string."))?;
 
-        let context = self.context.read();
-        let context = context
-            .as_ref()
-            .map_err(|_| RenderError::new("Failed to get generator context"))?
-            .as_ref()
-            .unwrap();
-
-        let check_url = full_url_from(&url, &context.output)?;
-        let page_url = full_url_from("", &context.output)?;
+        let (check_url, page_url) = self.context.with(|context| {
+            Ok((
+                full_url_from(&url, &context.output)?,
+                full_url_from("", &context.output)?,
+            ))
+        })?;
 
         debug!("check: {} - page: {}", check_url, page_url);
 
@@ -194,9 +180,10 @@ impl HelperDef for ActiveHelper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::generator::{GeneratorConfig, Output};
+    use crate::generator::{GeneratorConfig, GeneratorContext, Output};
     use serde_json::Map;
     use std::str::FromStr;
+    use std::sync::{Arc, RwLock};
 
     fn test_full_url(site_url: &str, path: &str, url: &str, expected: &str) {
         let o = Output {
@@ -256,7 +243,8 @@ mod tests {
     }
 
     fn setup_with(h: &mut Handlebars, base: &str, path: &str) -> Result<(), Error> {
-        let context_provider = Arc::new(RwLock::new(None));
+        let provider = Arc::new(RwLock::new(None));
+        let context_provider = GeneratorContextProvider::new(&provider);
 
         h.register_helper(
             "relative_url",
@@ -285,7 +273,7 @@ mod tests {
 
         let output = Output::new(config.basename.to_string(), path, Option::None::<String>)?;
         let ctx = GeneratorContext::new(&config, &output);
-        *context_provider.write().unwrap() = Some(ctx);
+        provider.write().unwrap().replace(ctx);
 
         Ok(())
     }

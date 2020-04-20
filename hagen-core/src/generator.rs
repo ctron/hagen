@@ -1,7 +1,7 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use handlebars::Handlebars;
+use handlebars::{Handlebars, HelperDef};
 
 use log::{debug, info};
 
@@ -32,7 +32,7 @@ use crate::processor::rss::RssProcessor;
 use crate::processor::sitemap::SitemapProcessor;
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use std::str::FromStr;
@@ -109,15 +109,61 @@ impl GeneratorContext {
     }
 }
 
-pub struct GeneratorBuilder {
+pub struct GeneratorBuilder<'a> {
+    helpers: HashMap<String, Box<dyn HelperDef + 'a>>,
+    default_helpers: bool,
+
+    processors: HashMap<String, Box<dyn Processor + 'a>>,
+    default_processors: bool,
+
     root: PathBuf,
     basename_override: Option<String>,
     dump: bool,
 }
 
-impl GeneratorBuilder {
+pub struct GeneratorContextProvider {
+    provider: Arc<RwLock<Option<GeneratorContext>>>,
+}
+
+impl GeneratorContextProvider {
+    pub fn new(provider: &Arc<RwLock<Option<GeneratorContext>>>) -> GeneratorContextProvider {
+        return GeneratorContextProvider {
+            provider: provider.clone(),
+        };
+    }
+
+    pub fn with<F, T>(&self, func: F) -> Result<T>
+    where
+        F: FnOnce(&GeneratorContext) -> Result<T>,
+    {
+        let context = self.provider.read();
+        let context = context
+            .as_ref()
+            .map_err(|_| GeneratorError::Error("Failed to get generator context".into()))?
+            .as_ref()
+            .unwrap();
+
+        func(context)
+    }
+}
+
+impl Clone for GeneratorContextProvider {
+    fn clone(&self) -> Self {
+        GeneratorContextProvider {
+            provider: self.provider.clone(),
+        }
+    }
+}
+
+impl<'a> GeneratorBuilder<'a> {
     pub fn new<P: Into<PathBuf>>(root: P) -> Self {
         return GeneratorBuilder {
+            helpers: HashMap::new(),
+            default_helpers: true,
+
+            processors: HashMap::new(),
+            default_processors: true,
+
             root: root.into(),
             basename_override: None,
             dump: false,
@@ -129,13 +175,111 @@ impl GeneratorBuilder {
         self
     }
 
+    /// Should default helpers be registered? Defaults to: `true`.
+    pub fn default_helpers(mut self, default_helpers: bool) -> Self {
+        self.default_helpers = default_helpers;
+        self
+    }
+
+    /// Override the configured basename, read from the configuration.
     pub fn override_basename<S: Into<String>>(mut self, basename: Option<S>) -> Self {
         self.basename_override = basename.map(|s| s.into());
         self
     }
 
-    pub fn build<'b>(self) -> Generator<'b> {
-        Generator::new(&self.root, self.basename_override, self.dump)
+    /// Register an additional helper.
+    pub fn register_helper<S: Into<String>>(
+        mut self,
+        name: S,
+        helper: Box<dyn HelperDef + 'a>,
+    ) -> Self {
+        self.helpers.insert(name.into(), helper);
+        self
+    }
+
+    pub fn build(self) -> Generator<'a> {
+        // create instance
+
+        let mut handlebars = Handlebars::new();
+        handlebars.set_strict_mode(true);
+
+        // eval root
+
+        let root = PathBuf::from(&self.root);
+
+        // context
+
+        let provider = Arc::new(RwLock::new(None));
+        let context_provider = GeneratorContextProvider::new(&provider);
+
+        // register processors
+
+        let mut processors: HashMap<String, Box<dyn Processor + 'a>> = HashMap::new();
+
+        if self.default_processors {
+            processors.insert("sitemap".into(), Box::new(SitemapProcessor));
+            processors.insert("rss".into(), Box::new(RssProcessor));
+        }
+
+        for (name, processor) in self.processors {
+            processors.insert(name, processor);
+        }
+
+        // register helpers
+
+        if self.default_helpers {
+            handlebars.register_helper("dump", Box::new(DumpHelper));
+
+            handlebars.register_helper("times", Box::new(TimesHelper));
+            handlebars.register_helper("expand", Box::new(ExpandHelper));
+            handlebars.register_helper("concat", Box::new(ConcatHelper));
+
+            handlebars.register_helper("sorted", Box::new(SortedHelper));
+
+            handlebars.register_helper("markdownify", Box::new(MarkdownifyHelper));
+
+            handlebars.register_helper("timestamp", Box::new(TimeHelper));
+
+            handlebars.register_helper(
+                "absolute_url",
+                Box::new(AbsoluteUrlHelper {
+                    context: context_provider.clone(),
+                }),
+            );
+            handlebars.register_helper(
+                "relative_url",
+                Box::new(RelativeUrlHelper {
+                    context: context_provider.clone(),
+                }),
+            );
+            handlebars.register_helper(
+                "active",
+                Box::new(ActiveHelper {
+                    context: context_provider.clone(),
+                }),
+            );
+        }
+
+        for (name, helper) in self.helpers {
+            handlebars.register_helper(name.as_str(), helper);
+        }
+
+        // create generator
+
+        Generator {
+            root,
+            basename_override: self.basename_override,
+            dump: self.dump,
+
+            handlebars,
+
+            processors,
+
+            config: Default::default(),
+            full_content: Default::default(),
+            compact_content: Default::default(),
+            context_provider: provider.clone(),
+        }
     }
 }
 
@@ -146,7 +290,7 @@ pub struct Generator<'a> {
 
     handlebars: Handlebars<'a>,
 
-    processors: BTreeMap<String, Box<dyn Processor>>,
+    processors: HashMap<String, Box<dyn Processor + 'a>>,
 
     config: Option<Render>,
     full_content: Value,
@@ -158,77 +302,6 @@ pub struct Generator<'a> {
 impl<'a> Generator<'a> {
     fn output(&self) -> PathBuf {
         self.root.join("output")
-    }
-
-    pub(crate) fn new(root: &Path, basename_override: Option<String>, dump: bool) -> Self {
-        // create instance
-
-        let mut handlebars = Handlebars::new();
-        handlebars.set_strict_mode(true);
-
-        // register processors
-
-        let mut processors: BTreeMap<String, Box<dyn Processor>> = BTreeMap::new();
-        processors.insert("sitemap".into(), Box::new(SitemapProcessor));
-        processors.insert("rss".into(), Box::new(RssProcessor));
-
-        // eval root
-
-        let root = PathBuf::from(&root);
-
-        // context
-
-        let context_provider = Arc::new(RwLock::new(None));
-
-        // register helpers
-
-        handlebars.register_helper("dump", Box::new(DumpHelper));
-
-        handlebars.register_helper("times", Box::new(TimesHelper));
-        handlebars.register_helper("expand", Box::new(ExpandHelper));
-        handlebars.register_helper("concat", Box::new(ConcatHelper));
-
-        handlebars.register_helper("sorted", Box::new(SortedHelper));
-
-        handlebars.register_helper("markdownify", Box::new(MarkdownifyHelper));
-
-        handlebars.register_helper("timestamp", Box::new(TimeHelper));
-
-        handlebars.register_helper(
-            "absolute_url",
-            Box::new(AbsoluteUrlHelper {
-                context: context_provider.clone(),
-            }),
-        );
-        handlebars.register_helper(
-            "relative_url",
-            Box::new(RelativeUrlHelper {
-                context: context_provider.clone(),
-            }),
-        );
-        handlebars.register_helper(
-            "active",
-            Box::new(ActiveHelper {
-                context: context_provider.clone(),
-            }),
-        );
-
-        // create generator
-
-        Generator {
-            root,
-            basename_override,
-            dump,
-
-            handlebars,
-
-            processors,
-
-            config: Default::default(),
-            full_content: Default::default(),
-            compact_content: Default::default(),
-            context_provider: context_provider.clone(),
-        }
     }
 
     pub fn run(&mut self) -> Result<()> {
@@ -436,9 +509,7 @@ impl<'a> Generator<'a> {
 
         {
             let ctx = GeneratorContext::new(config, &output);
-            {
-                *self.context_provider.write().unwrap() = Some(ctx);
-            }
+            self.context_provider.write().unwrap().replace(ctx);
             let output_value = serde_json::to_value(&output)?;
 
             // render
@@ -467,9 +538,7 @@ impl<'a> Generator<'a> {
             processors.file_created(&output, data, &mut self.handlebars)?;
 
             // reset current context
-            {
-                *self.context_provider.write().unwrap() = None;
-            }
+            self.context_provider.write().unwrap().take();
         }
 
         // done

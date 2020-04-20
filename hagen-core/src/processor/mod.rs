@@ -5,7 +5,7 @@ use handlebars::Handlebars;
 use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::Writer;
 use serde_json::{Map, Value};
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::io::Write;
 
 pub mod rss;
@@ -39,7 +39,7 @@ pub struct ProcessorSession<'a> {
 
 impl<'a> ProcessorSession<'a> {
     pub fn new<'reg>(
-        processors: &BTreeMap<String, Box<dyn Processor>>,
+        processors: &HashMap<String, Box<dyn Processor + 'a>>,
         handlebars: &'reg mut Handlebars,
         data: &Value,
         config: &'a GeneratorConfig,
