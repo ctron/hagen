@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+    <meta charset="utf-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="stylesheet" href="/hagen/assets/bootstrap/bootstrap.min.css">
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.1/styles/default.min.css">
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.1/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+
+    <link rel="stylesheet" href="/hagen/assets/custom.css">
+<link rel="canonical" href="https://ctron.github.io/hagen/documentation/00-basics/000-project.html" />
+
+<meta name="author" content="Jens Reimann" />
+<meta name="contact" content="ctron@dentrassi.de" />
+
+<meta property="og:locale" content="en_US" />
+<meta property="og:url" content="https://ctron.github.io/hagen/documentation/00-basics/000-project.html" />
+<meta property="og:site_name" content="Hagen" />
+<meta property="og:title" content="Basic Project &ndash; Hagen" />
+<meta property="og:type" content="article" />
+<meta property="og:updated_time" content="" />
+
+
+<meta property="article:published_time" content="2020-04-21T18:11:00+00:00" />
+<meta property="article:modified_time" content="" />
+
+<meta name="twitter:card" content="summary" />
+
+<meta name="twitter:title" content="Basic Project &ndash; Hagen" />
+<meta name="twitter:site" content="@ctron" />
+<meta name="twitter:creator" content="@ctron" />
+
+
+    <title>Basic Project &ndash; Hagen</title>
+</head>
+
+<body>
+
+<header class="mb-5">
+<nav class="container navbar navbar-expand-lg navbar-light bg-light mt-3">
+    <a class="navbar-brand" href="/hagen/">Hagen</a>
+    <button class="navbar-toggler" type="button"
+            data-toggle="collapse" data-target="#navbarNav"
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+            
+                <li class="nav-item ">
+                    <a
+                            class="nav-link"
+                            href="/hagen/">Home</a>
+                </li>
+            
+                <li class="nav-item ">
+                    <a
+                            class="nav-link"
+                            href="/hagen/documentation/">Documentation</a>
+                </li>
+            
+                <li class="nav-item ">
+                    <a
+                            class="nav-link"
+                            href="/hagen/about/">About</a>
+                </li>
+            
+        </ul>
+    </div>
+</nav>
+
+<div class="container py-4">
+    <h1>
+    
+        Basic Project
+    
+</h1>
+
+
+    
+
+
+</div>
+
+</header>
+
+<main id="main" role="main"><div class="container">
+    
+        <h2>Project layout</h2>
+<p>The basic project structure of a Hagen project is:</p>
+<pre><code class="language-text">/hagen.yaml      # the main configuration file
+/content/        # the content directory
+</code></pre>
+<h2>Minimal Hagen configuration</h2>
+<p>The minimal <code>hagen.yaml</code> file might look like this:</p>
+<pre><code class="language-yaml">site:
+    basename: https://ctron.github.io/hagen
+rules:
+  - selectorType: layout
+    template: &quot;{{ frontMatter.layout }}&quot;
+    outputPattern: &quot;{{ metadata.parent }}/{{ metadata.name }}.html&quot;
+    context:
+      page: $
+      content: $.content
+      timestamp: $.frontMatter.timestamp
+</code></pre>
+<p>The value <code>.site.basename</code> is mandatory. It contains the base name
+of the site where the page will be hosted on. You can always override
+this from the command line for testing or staging sites though.</p>
+<p>The field <code>.rules</code> is an array of rules, which will be processed when
+the generator is running. In a nutshell Hagen will:</p>
+<ul>
+<li>Load all content</li>
+<li>Select what needs to be rendered</li>
+<li>Render the selected content</li>
+</ul>
+<h2>Rules</h2>
+<p>Each rule consists of:</p>
+<ul>
+<li>
+<p>The <strong>selector type</strong> (<code>selectorType</code>) which specifies the type
+of selector being used for selecting content. Some selector types might
+require additional information (like an expression), others don't.</p>
+</li>
+<li>
+<p>An <strong>output pattern</strong> (<code>outputPattern</code>) which defines the filename,
+relative to the root of the output folder, to which the content
+should be rendered. The output pattern is actually template so a value
+of <code>{{ metadata.parent }}/{{ metadata.name }}.html</code> would simply construct
+a name based on the location in the content tree (<code>parent</code>), the name of the
+content file (<code>name</code>) and the static suffix <code>.html</code>.</p>
+</li>
+</ul>
+<p>Additionally a rule might have:</p>
+<ul>
+<li>
+<p>Additional information for the selector can be provided in the field
+<code>selector</code>. The content is specific to the type of the selector.</p>
+</li>
+<li>
+<p>The name of a template in the field <code>template</code>. This field holds a
+template expression, so that the name can be generated. For example
+<code>{{ frontMatter.layout }}</code> would use the field <code>layout</code> from the
+<em>front matter</em> as template name. Of course this can also be a static
+string.</p>
+<p>If no template is specified, then the selector must point to an object
+which has a field named <code>content</code>, which will be used as an ad hoc
+template instead.</p>
+</li>
+<li>
+<p>The field <code>context</code> can be used to customize the page context, which is
+provided to the template rendering the page. This may be used to prepare
+and customize fields for the page context.</p>
+<p>If no context is set, then the current point in the content tree, where
+the selector matched, will be used as the page context.</p>
+</li>
+</ul>
+<h3>Selector types</h3>
+<p>The following selector types are available:</p>
+<ul>
+<li><code>layout</code> – Matches if the current object being evaluated has the field <code>.frontMatter.layout</code>.
+If an additional value is configured in the <code>selector</code> field of the rule, then not only must the
+field exists, but also the value must match.</li>
+<li><code>type</code> – Matches if the current object being evaluated has the field <code>.metadata.type</code>.
+If an additional value is configured in the <code>selector</code> field of the rule, then not only must the
+field exists, but also the value must match.</li>
+<li><code>jsonpath</code> – Matches of the current object being evaluated matches the JSON path expression.
+A valid JSON path expression must be provided in the <code>selector</code> field of the rule.</li>
+</ul>
+
+    
+</div>
+
+</main>
+
+<footer class="mt-5 py-5">
+<div class="container text-muted">
+    <p class="float-right">
+        This site was generated with Hagen.
+    </p>
+    <p>&copy; 2019-2020 Jens Reimann
+        
+            • <a href="https://github.com/ctron/hagen">Git Hub</a>
+        
+    </p>
+</div>
+
+</footer>
+
+<script src="/hagen/assets/popper.min.js"></script>
+<script src="/hagen/assets/jquery.min.js"></script>
+<script src="/hagen/assets/bootstrap/bootstrap.min.js"></script>
+
+</body>
+</html>

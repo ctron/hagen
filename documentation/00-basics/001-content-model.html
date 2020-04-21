@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+    <meta charset="utf-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="stylesheet" href="/hagen/assets/bootstrap/bootstrap.min.css">
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.1/styles/default.min.css">
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.1/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+
+    <link rel="stylesheet" href="/hagen/assets/custom.css">
+<link rel="canonical" href="https://ctron.github.io/hagen/documentation/00-basics/001-content-model.html" />
+
+<meta name="author" content="Jens Reimann" />
+<meta name="contact" content="ctron@dentrassi.de" />
+
+<meta property="og:locale" content="en_US" />
+<meta property="og:url" content="https://ctron.github.io/hagen/documentation/00-basics/001-content-model.html" />
+<meta property="og:site_name" content="Hagen" />
+<meta property="og:title" content="Content Model &ndash; Hagen" />
+<meta property="og:type" content="article" />
+<meta property="og:updated_time" content="" />
+
+
+<meta property="article:published_time" content="2020-04-21T18:11:00+00:00" />
+<meta property="article:modified_time" content="" />
+
+<meta name="twitter:card" content="summary" />
+
+<meta name="twitter:title" content="Content Model &ndash; Hagen" />
+<meta name="twitter:site" content="@ctron" />
+<meta name="twitter:creator" content="@ctron" />
+
+
+    <title>Content Model &ndash; Hagen</title>
+</head>
+
+<body>
+
+<header class="mb-5">
+<nav class="container navbar navbar-expand-lg navbar-light bg-light mt-3">
+    <a class="navbar-brand" href="/hagen/">Hagen</a>
+    <button class="navbar-toggler" type="button"
+            data-toggle="collapse" data-target="#navbarNav"
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+            
+                <li class="nav-item ">
+                    <a
+                            class="nav-link"
+                            href="/hagen/">Home</a>
+                </li>
+            
+                <li class="nav-item ">
+                    <a
+                            class="nav-link"
+                            href="/hagen/documentation/">Documentation</a>
+                </li>
+            
+                <li class="nav-item ">
+                    <a
+                            class="nav-link"
+                            href="/hagen/about/">About</a>
+                </li>
+            
+        </ul>
+    </div>
+</nav>
+
+<div class="container py-4">
+    <h1>
+    
+        Content Model
+    
+</h1>
+
+
+    
+
+
+</div>
+
+</header>
+
+<main id="main" role="main"><div class="container">
+    
+        <h2>Content</h2>
+<p>The internal content model of Hagen is based on JSON structures. This is coming
+from the fact that Hagen uses various technologies, like Handlebars and JSON path,
+which are all based around JSON. And while you still can create complex objects
+in JSON, the content model is still limited to the JSON primitive types
+(<code>string</code>, <code>number</code>, <code>boolean</code>, …).</p>
+<div class="alert alert-info" role="alert">
+    <h4 class="alert-heading">Using YAML</h4>
+While internally everything works with the JSON data model, authoring and reading
+JSON can be quite painful. Thus Hagen uses YAML, instead of JSON, when it comes
+to reading and writing files, based on the JSON data model.
+</div>
+<p>When building, Hagen it will load all content from the <code>content</code> directory in the
+root of the project. It will iterate through the directory structure, and build
+a single model out of all information it can find, and understand. Including the
+directories themselves.</p>
+<h2>Different content types</h2>
+<p>The content loader will iterate through the <code>content</code> directory, and start loading
+all files and directory entries. The initial entry in the content tree will
+be the <code>content</code> directory itself.</p>
+<p>The basic structure of a content entry is:</p>
+<pre><code class="language-yaml">metadata:
+  name: index         # The basename of the file
+  parent: /about      # The parent directory, relative to the content root
+  type: md            # The content type
+  filename: index.md  # The name of the source file
+frontMatter:          # A map of all front matter, may be an empty map '{}'
+  title: About
+content:              # The section specific to the content type
+</code></pre>
+<h3>Directory</h3>
+<p>A directory will load the content section with a map of all files and directories
+it can find an parse:</p>
+<pre><code class="language-yaml">content:
+  file-1: {}
+  file-2: {}
+  directory: {}
+</code></pre>
+<p>It will also iterate through all sub-directories, and load them into the map as well,
+so a more populated directory might look like this:</p>
+<pre><code class="language-yaml">metadata:
+  name: about
+  type: directory
+  parent: /
+  filename: about
+content:
+  index:
+    metadata:
+      name: index
+      type: md
+      parent: /about
+      filename: index.md
+    frontMatter:
+      title: About
+    content: &quot;## About\n\nAbout this site...&quot;
+  help:
+    metadata:
+      name: help
+      type: directory
+      parent: /about
+      filename: help
+    frontMatter: {}
+    content:
+      index:
+        metadata:
+          name: index
+          type: md
+          parent: /about/help
+          filename: index.md
+        frontMatter:
+          title: Getting help
+        content: &quot;## Help\n\nContact us...&quot;
+</code></pre>
+<h3>Plain text</h3>
+<p>A plain text file will simply load the content of the file into the content section:</p>
+<pre><code class="language-yaml">metadata:
+  name: robots
+  parent: /
+  type: txt
+  filename: robots.txt
+frontMatter: {}
+content: &quot;Sitemap: {{ absolute_url &quot;/sitemap.xml&quot; }}&quot;
+</code></pre>
+<p>Front matter will be loaded as described in <a href="#front-matter">Front matter</a>.</p>
+<h3>YAML</h3>
+<p>YAML files are parsed and the content loaded as content section. Assuming you have a
+file <code>site.yaml</code> like this:</p>
+<pre><code class="language-yaml">title: My Site
+language: en-US
+menu:
+  - label: About
+    url: /about/
+</code></pre>
+<p>The the content will be:</p>
+<pre><code class="language-yaml">metadata:
+  name: site
+  parent: /
+  type: yaml
+  filename: site.yaml
+frontMatter: {}
+content:
+  title: My Site
+  language: en-US
+  menu:
+    - label: About
+      url: /about/
+</code></pre>
+<h3>Markdown</h3>
+<p>Markdown is similar to plain text, as the mark down content will be parsed later on, using a helper function
+named <code>markdownify</code>. So a simple markdown file named <code>index.md</code> like this:</p>
+<pre><code class="language-markdown">---
+title: About
+---
+# About
+
+About this site...
+</code></pre>
+<p>Would translate into:</p>
+<pre><code class="language-yaml">metadata:
+  name: index
+  parent: /about
+  type: md
+  filename: index.md
+frontMatter:
+  title: About
+content: &quot;#About\n\nAbout this site...&quot;
+</code></pre>
+<h2><span id="front-matter">Front matter</h2>
+<p>Front matter is additional information, metadata, which can be attached to a page.
+It is not content, which is should render as part of the normal content, but used
+elsewhere, like a publishing timestamp, additional information for Twitter, the author, …</p>
+<p>Text files (like <code>md</code> files), allow to prefix the main content, with front matter like this:</p>
+<pre><code class="language-text">---
+foo: bar
+---
+Actual content
+</code></pre>
+<p>The first line of the file must be <code>---</code> (three normal dashes). Everything after this line, until
+the next occurrence of <code>---</code> will be parsed as YAML, and set into the front matter field.</p>
+<p>If the YAML cannot be parsed, Hagen will abort. If the front matter section is missing, then
+the front matter section will simply be empty.</p>
+<h2>Different representations</h2>
+<p>In addition to the <em>full</em> data model, Hagen also transforms this into a <em>compact</em>
+form, which might be handy in some scenarios. The compact format is generated
+from the complete one by only using the <code>content</code> sections.</p>
+<p>The following <em>full</em> model:</p>
+<pre><code class="language-yaml">metadata:
+  name: content
+  parent: /path/to/root
+  filename: content
+  type: directory
+frontMatter: {}
+content:
+  about:
+    metadata:
+      name: about
+      parent: /
+      filename: about
+      type: directory
+    frontMatter: {}
+    content:
+      index:
+        metadata:
+          name: index
+          parent: /about
+          filename: index.md
+          type: md
+        frontMatter:
+          title: About
+          layout: default
+        content: &quot;## About\n\nSome more content&quot;
+  site:
+    metadata:
+      name: site
+      parent: /
+      filename: site.yaml
+      type: yaml
+    frontMatter: {}
+    content:
+      title: My Site
+      language: en-US
+      menu:
+        - label: Home
+          url: /
+        - label: About
+          url: /about/
+</code></pre>
+<p>Would be translated into the <em>compact</em> model as:</p>
+<pre><code class="language-yaml">about:
+  index: &quot;## About\n\nSome more content&quot;
+site:
+  title: My Site
+  language: en-US
+  menu:
+    - label: Home
+      url: /
+    - label: About
+      url: /about/
+</code></pre>
+<p>So instead of using <code>.full.content.site.content.title</code>
+you could also use the shorter form <code>.compact.site.title</code>.</p>
+<h2>Dumping</h2>
+<p>In order to better understand how the content directory translates into the
+content model and to make it easier to debug, you can output the internal
+content model as a YAML structure by passing <code>-D</code> or <code>--dump</code> as a command
+line argument. This will generate the files <code>content.yaml</code> and <code>compact.yaml</code>
+in the output directory.</p>
+
+    
+</div>
+
+</main>
+
+<footer class="mt-5 py-5">
+<div class="container text-muted">
+    <p class="float-right">
+        This site was generated with Hagen.
+    </p>
+    <p>&copy; 2019-2020 Jens Reimann
+        
+            • <a href="https://github.com/ctron/hagen">Git Hub</a>
+        
+    </p>
+</div>
+
+</footer>
+
+<script src="/hagen/assets/popper.min.js"></script>
+<script src="/hagen/assets/jquery.min.js"></script>
+<script src="/hagen/assets/bootstrap/bootstrap.min.js"></script>
+
+</body>
+</html>
