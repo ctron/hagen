@@ -1,0 +1,6 @@
+<div class="alert alert-{{type}}" role="alert">
+    {{#with title~}}
+    <h4 class="alert-heading">{{~this~}}</h4>
+    {{~/with}}
+    {{~> @partial-block~}}
+</div>

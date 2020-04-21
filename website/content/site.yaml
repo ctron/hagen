@@ -5,6 +5,8 @@ description: Generating static websites in Rust.
 menu:
   - label: Home
     url: /
+  - label: Documentation
+    url: /documentation/
   - label: About
     url: /about/
 

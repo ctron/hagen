@@ -1,0 +1,22 @@
+<ul>
+{{#sorted idx.content "/metadata/name"}}
+
+{{#if (eq this.metadata.type "directory" ) }}
+<li>
+{{#if this.content.index }}
+{{this.content.index.frontMatter.title}}
+{{else}}
+{{this.metadata.name}}
+{{/if}}
+{{> doc/index idx=this }}
+</li>
+{{/if}}
+
+{{#if ( and (eq this.metadata.type "md" ) ( not ( eq this.metadata.name "index" ) ) ) }}
+<li>
+    <a href="{{relative_url (concat this.metadata.parent "/" this.metadata.name ".html") }} ">{{this.frontMatter.title}}</a>
+</li>
+{{/if}}
+
+{{/sorted}}
+</ul>

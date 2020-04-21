@@ -13,8 +13,8 @@ You need:
 
 ## Overview
 
-The makefile will orchestrate fetching the dependencies, compiling
-the SCSS files, running Hagen, and a local web server.
+The makefile will orchestrate the fetching the the dependencies,
+compiling the SCSS files, running Hagen, and a local web server.
 
 ## Local preview
 

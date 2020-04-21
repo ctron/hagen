@@ -1,5 +1,5 @@
 {{~#with context.timestamp.updated}}
 {{~ timestamp "%Y-%m-%dT%H:%M:%S%:z" this ~}}
 {{else}}
-{{~ timestamp "%Y-%m-%dT%H:%M:%S%:z" context.timestamp.published ~}}
+{{~> parts/meta/publish_timetamp ~}}
 {{/with~}}
