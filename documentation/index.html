@@ -40,8 +40,8 @@
 
 <body>
 
-<header class="mb-5">
-<nav class="container navbar navbar-expand-lg navbar-light bg-light mt-3">
+<header class="mb-2">
+<nav class="container-fluid navbar navbar-expand-lg navbar-light bg-light">
     <a class="navbar-brand" href="/hagen/">Hagen</a>
     <button class="navbar-toggler" type="button"
             data-toggle="collapse" data-target="#navbarNav"
@@ -73,7 +73,7 @@
     </div>
 </nav>
 
-<div class="container py-4">
+<div class="container-fluid py-4">
     <h1>
     
         Documentation
@@ -88,25 +88,29 @@
 
 </header>
 
-<main id="main" role="main"><div class="container">
+<main id="main" role="main">
     
-        
-<ul>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-3 col-lg-2">
+            <ul class="nav flex-column">
 
 
 
-<li>
+<li class="nav-item">
+    <h4>
 
 Getting started
 
-<ul>
+    </h4>
+<ul class="nav flex-column">
 
 
 
 
 
-<li>
-    <a href="/hagen/documentation/00-getting-started/000-installation.html ">Installation</a>
+<li class="nav-item">
+    <a class="nav-link" href="/hagen/documentation/00-getting-started/000-installation.html ">Installation</a>
 </li>
 
 
@@ -115,8 +119,8 @@ Getting started
 
 
 
-<li>
-    <a href="/hagen/documentation/00-getting-started/010-project.html ">Basic Project</a>
+<li class="nav-item">
+    <a class="nav-link" href="/hagen/documentation/00-getting-started/010-project.html ">Basic Project</a>
 </li>
 
 
@@ -125,8 +129,8 @@ Getting started
 
 
 
-<li>
-    <a href="/hagen/documentation/00-getting-started/020-content-model.html ">Content Model</a>
+<li class="nav-item">
+    <a class="nav-link" href="/hagen/documentation/00-getting-started/020-content-model.html ">Content Model</a>
 </li>
 
 
@@ -146,18 +150,20 @@ Getting started
 
 
 
-<li>
+<li class="nav-item">
+    <h4>
 
 Recipes
 
-<ul>
+    </h4>
+<ul class="nav flex-column">
 
 
 
 
 
-<li>
-    <a href="/hagen/documentation/10-recipes/010-processing.html ">Processing assets</a>
+<li class="nav-item">
+    <a class="nav-link" href="/hagen/documentation/10-recipes/010-processing.html ">Processing assets</a>
 </li>
 
 
@@ -166,8 +172,8 @@ Recipes
 
 
 
-<li>
-    <a href="/hagen/documentation/10-recipes/020-live-reload.html ">Live reload</a>
+<li class="nav-item">
+    <a class="nav-link" href="/hagen/documentation/10-recipes/020-live-reload.html ">Live reload</a>
 </li>
 
 
@@ -192,8 +198,31 @@ Recipes
 
 
 </ul>
+        </div>
+        <div class="col-md-9 col-lg-10">
+            <div class="container-fluid">
+    
+        
+<p>
+Learn how to work with Hagen.
+</p>
+
+<div class="alert alert-secondary" role="alert">
+    
+  This page is generated with Hagen, and you can see the full setup in
+  the <a class="alert-link" href="https://github.com/ctron/hagen/tree/master/website">website/</a>
+  directory of its <a class="alert-link" href="https://github.com/ctron/hagen">GitHub repository</a>.
+</div>
+
+
+
     
 </div>
+
+        </div>
+    </div>
+</div>
+
 
 </main>
 
