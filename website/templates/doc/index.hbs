@@ -1,20 +1,22 @@
-<ul>
+<ul class="nav flex-column">
 {{#sorted idx.content "/metadata/name"}}
 
 {{#if (eq this.metadata.type "directory" ) }}
-<li>
+<li class="nav-item">
+    <h4>
 {{#if this.content.index }}
 {{this.content.index.frontMatter.title}}
 {{else}}
 {{this.metadata.name}}
 {{/if}}
+    </h4>
 {{> doc/index idx=this }}
 </li>
 {{/if}}
 
 {{#if ( and (eq this.metadata.type "md" ) ( not ( eq this.metadata.name "index" ) ) ) }}
-<li>
-    <a href="{{relative_url (concat this.metadata.parent "/" this.metadata.name ".html") }} ">{{this.frontMatter.title}}</a>
+<li class="nav-item">
+    <a class="nav-link" href="{{relative_url (concat this.metadata.parent "/" this.metadata.name ".html") }} ">{{this.frontMatter.title}}</a>
 </li>
 {{/if}}
 
