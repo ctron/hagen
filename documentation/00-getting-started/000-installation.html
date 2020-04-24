@@ -12,30 +12,30 @@
     <script>hljs.initHighlightingOnLoad();</script>
 
     <link rel="stylesheet" href="/hagen/assets/custom.css">
-<link rel="canonical" href="https://ctron.github.io/hagen/" />
+<link rel="canonical" href="https://ctron.github.io/hagen/documentation/00-getting-started/000-installation.html" />
 
 <meta name="author" content="Jens Reimann" />
 <meta name="contact" content="ctron@dentrassi.de" />
 
 <meta property="og:locale" content="en_US" />
-<meta property="og:url" content="https://ctron.github.io/hagen/" />
+<meta property="og:url" content="https://ctron.github.io/hagen/documentation/00-getting-started/000-installation.html" />
 <meta property="og:site_name" content="Hagen" />
-<meta property="og:title" content="Hagen" />
+<meta property="og:title" content="Installation &ndash; Hagen" />
 <meta property="og:type" content="article" />
 <meta property="og:updated_time" content="" />
-<meta property="og:description" content="Hagen is a static website generator, written in Rust." />
 
-<meta property="article:published_time" content="2020-02-01T17:42:00+00:00" />
+
+<meta property="article:published_time" content="2020-04-24T19:11:00+00:00" />
 <meta property="article:modified_time" content="" />
 
 <meta name="twitter:card" content="summary" />
-<meta name="twitter:description" content="Hagen is a static website generator, written in Rust." />
-<meta name="twitter:title" content="Hagen" />
+
+<meta name="twitter:title" content="Installation &ndash; Hagen" />
 <meta name="twitter:site" content="@ctron" />
 <meta name="twitter:creator" content="@ctron" />
 
 
-    <title>Hagen</title>
+    <title>Installation &ndash; Hagen</title>
 </head>
 
 <body>
@@ -51,10 +51,10 @@
     <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav">
             
-                <li class="nav-item active">
+                <li class="nav-item ">
                     <a
                             class="nav-link"
-                            href="/hagen/">Home <span class="sr-only">(current)</span></a>
+                            href="/hagen/">Home</a>
                 </li>
             
                 <li class="nav-item ">
@@ -74,7 +74,15 @@
 </nav>
 
 <div class="container py-4">
+    <h1>
     
+        Installation
+    
+</h1>
+
+
+    
+
 
 </div>
 
@@ -82,28 +90,22 @@
 
 <main id="main" role="main"><div class="container">
     
-        
-<div class="jumbotron">
-
-<h2 class="display-4">Welcome to Hagen</h2>
-
-<p class="lead">
-Hagen is a static website generator, written in the <a href="https://www.rust-lang.org/">Rust language</a>.
-It's goal is to be flexible and extensible, making it possible to generate all kinds of web sites, not just blogs.
-</p>
-<div class="my-4"></div>
-<p class="lead">
-  <a class="btn btn-primary btn-lg" href="/hagen/documentation" role="button">Learn more</a>
-</p>
-
+        <h2>Download a binary</h2>
+<p>Go to the release page on GitHub and download the most recent release:</p>
+<div class="px-3 my-3">
+<a href="https://github.com/ctron/hagen/releases">https://github.com/ctron/hagen/releases</a>
 </div>
+<h2>Using Cargo</h2>
+<p>If you have Rust and Cargo installed, you can simply install Hagen using cargo:</p>
+<pre><code>cargo install hagen
+</code></pre>
+<h2>Using Docker</h2>
+<p>Hagen can also be run directly using docker:</p>
+<pre><code>docker run -v /path/to/my-page:/homepage --rm -ti quay.io/ctron/hagen
+</code></pre>
+<p><code>/homepage</code> is the path inside the container which Hagen will
+use as the root.</p>
 
-<p>
-  This page is generated with Hagen, and you can see the full setup in
-  the <a href="https://github.com/ctron/hagen/tree/master/website">website/</a>
-  directory of its <a href="https://github.com/ctron/hagen">GitHub repository</a>.
-  </p>
-  
     
 </div>
 

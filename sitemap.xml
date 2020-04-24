@@ -5,12 +5,22 @@
 	<lastmod>2020-02-01T18:21:00+00:00</lastmod>
 </url>
 <url>
-	<loc>https://ctron.github.io/hagen/documentation/00-basics/000-project.html</loc>
+	<loc>https://ctron.github.io/hagen/documentation/00-getting-started/000-installation.html</loc>
+	<lastmod>2020-04-24T19:11:00+00:00</lastmod>
+</url>
+<url>
+	<loc>https://ctron.github.io/hagen/documentation/00-getting-started/010-project.html</loc>
 	<lastmod>2020-04-21T18:11:00+00:00</lastmod>
 </url>
 <url>
-	<loc>https://ctron.github.io/hagen/documentation/00-basics/001-content-model.html</loc>
+	<loc>https://ctron.github.io/hagen/documentation/00-getting-started/020-content-model.html</loc>
 	<lastmod>2020-04-21T18:11:00+00:00</lastmod>
+</url>
+<url>
+	<loc>https://ctron.github.io/hagen/documentation/10-recipes/010-processing.html</loc>
+</url>
+<url>
+	<loc>https://ctron.github.io/hagen/documentation/10-recipes/020-live-reload.html</loc>
 </url>
 <url>
 	<loc>https://ctron.github.io/hagen/documentation/</loc>
